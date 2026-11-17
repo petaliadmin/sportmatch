@@ -20,6 +20,7 @@
 
   <modules>
     <module>platform-commons</module>
+    <module>platform-messaging</module>
     <module>sportmatch-gateway</module>
     <module>sportmatch-app</module>
     <module>sportmatch-events</module>
@@ -54,6 +55,11 @@
       <dependency>
         <groupId>com.sportmatch</groupId>
         <artifactId>platform-commons</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.sportmatch</groupId>
+        <artifactId>platform-messaging</artifactId>
         <version>${project.version}</version>
       </dependency>
     </dependencies>

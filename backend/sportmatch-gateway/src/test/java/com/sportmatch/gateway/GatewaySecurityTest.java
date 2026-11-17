@@ -25,4 +25,12 @@ class GatewaySecurityTest {
     void lesNotificationsExigentUnJeton() {
         client.get().uri("/api/v1/notifications").exchange().expectStatus().isUnauthorized();
     }
+
+    @Test
+    void unServiceInjoignableRenvoieUn503Propre() {
+        // Aucun service n'écoute pendant ce test : le circuit breaker bascule sur le fallback.
+        client.get().uri("/api/v1/venues").exchange()
+                .expectStatus().isEqualTo(503)
+                .expectBody().jsonPath("$.title").isEqualTo("Service indisponible");
+    }
 }

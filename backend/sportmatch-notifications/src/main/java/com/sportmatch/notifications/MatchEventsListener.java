@@ -18,8 +18,8 @@ public class MatchEventsListener {
         this.store = store;
     }
 
-    @KafkaListener(topics = Topics.MATCH_V1, groupId = "sportmatch-notifications")
-    public void onMatchEvent(String message) throws JsonProcessingException {
+    @KafkaListener(topics = {Topics.MATCH_V1, Topics.BOOKING_V1}, groupId = "sportmatch-notifications")
+    public void onEvent(String message) throws JsonProcessingException {
         store.handle(mapper.readValue(message, EventEnvelope.class));
     }
 }

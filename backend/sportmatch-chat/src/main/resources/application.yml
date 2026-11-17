@@ -14,10 +14,23 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9094}
+    consumer:
+      auto-offset-reset: earliest
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+
+sportmatch:
+  outbox:
+    enabled: false
+  chat:
+    allowed-origins: ${CHAT_ALLOWED_ORIGINS:*}
+  kafka:
+    partitions: 3
+    replicas: 1
 
 management:
   endpoints:

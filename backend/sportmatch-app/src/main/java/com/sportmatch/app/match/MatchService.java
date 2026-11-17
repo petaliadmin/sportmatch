@@ -1,6 +1,6 @@
 package com.sportmatch.app.match;
 
-import com.sportmatch.app.outbox.OutboxWriter;
+import com.sportmatch.messaging.OutboxWriter;
 import com.sportmatch.commons.events.Topics;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;

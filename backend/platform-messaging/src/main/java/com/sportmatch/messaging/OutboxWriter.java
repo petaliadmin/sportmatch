@@ -1,11 +1,10 @@
-package com.sportmatch.app.outbox;
+package com.sportmatch.messaging;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sportmatch.commons.events.EventEnvelope;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -15,24 +14,24 @@ import java.util.UUID;
 /**
  * Pattern Transactional Outbox : l'événement est écrit dans la même transaction que la donnée métier,
  * puis publié sur Kafka par {@link OutboxPublisher}. Aucun événement n'est perdu si Kafka est indisponible.
+ * La table outbox_event doit exister dans la base du service (voir le changelog Liquibase de sportmatch-app).
  */
-@Component
 public class OutboxWriter {
-
-    private static final String SOURCE = "sportmatch-app";
 
     private final JdbcClient jdbc;
     private final ObjectMapper mapper;
+    private final String source;
 
-    public OutboxWriter(JdbcClient jdbc, ObjectMapper mapper) {
+    public OutboxWriter(JdbcClient jdbc, ObjectMapper mapper, String source) {
         this.jdbc = jdbc;
         this.mapper = mapper;
+        this.source = source;
     }
 
     public void append(String topic, String aggregateType, String aggregateId, String eventType, Map<String, Object> payload) {
         UUID eventId = UUID.randomUUID();
         JsonNode body = mapper.valueToTree(payload);
-        EventEnvelope envelope = new EventEnvelope(eventId, eventType, OffsetDateTime.now(ZoneOffset.UTC), SOURCE, aggregateId, body);
+        EventEnvelope envelope = new EventEnvelope(eventId, eventType, OffsetDateTime.now(ZoneOffset.UTC), source, aggregateId, body);
         String json;
         try {
             json = mapper.writeValueAsString(envelope);

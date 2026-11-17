@@ -37,4 +37,16 @@ class NotificationFactoryTest {
     void unEvenementSansOrganisateurEstIgnore() {
         assertThat(NotificationFactory.from(event("match.created", Map.of()))).isEmpty();
     }
+
+    @Test
+    void uneReservationConfirmeePrevientLeJoueurAvecLaDateEnHeureDeDakar() {
+        var notification = NotificationFactory.from(event("booking.confirmed", Map.of(
+                "userId", "awa", "courtName", "Terrain A", "venueName", "Arena Almadies Five",
+                "startsAt", "2030-06-15T18:00:00Z", "userEmail", "awa@demo.sportmatch.test")));
+
+        assertThat(notification).isPresent();
+        assertThat(notification.get().userId()).isEqualTo("awa");
+        assertThat(notification.get().title()).isEqualTo("Réservation confirmée");
+        assertThat(notification.get().body()).contains("Terrain A", "samedi 15 juin à 18h00", "aucun paiement");
+    }
 }

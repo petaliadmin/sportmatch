@@ -7,6 +7,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.oauth2.server.resource.web.server.authentication.ServerBearerTokenAuthenticationConverter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
@@ -24,15 +25,20 @@ public class SecurityConfig {
 
     @Bean
     SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+        // Les navigateurs ne peuvent pas poser d'en-tête Authorization sur un WebSocket :
+        // le jeton est alors accepté en paramètre ?access_token= (requêtes GET uniquement).
+        ServerBearerTokenAuthenticationConverter bearer = new ServerBearerTokenAuthenticationConverter();
+        bearer.setAllowUriQueryParameter(true);
         return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(Customizer.withDefaults())
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                         .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .pathMatchers(HttpMethod.GET, "/api/v1/venues/**", "/api/v1/matches/**").permitAll()
+                        .pathMatchers("/fallback/**").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/v1/venues/**", "/api/v1/matches/**", "/api/v1/business/courts/**").permitAll()
                         .anyExchange().authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+                .oauth2ResourceServer(oauth2 -> oauth2.bearerTokenConverter(bearer).jwt(Customizer.withDefaults()))
                 .build();
     }
 

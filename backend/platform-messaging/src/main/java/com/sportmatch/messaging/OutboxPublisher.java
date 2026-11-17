@@ -1,11 +1,10 @@
-package com.sportmatch.app.outbox;
+package com.sportmatch.messaging;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -19,7 +18,6 @@ import java.util.concurrent.TimeoutException;
  * FOR UPDATE SKIP LOCKED permet de lancer plusieurs réplicas du service sans double publication concurrente.
  * Livraison "at least once" : les consommateurs dédupliquent sur eventId.
  */
-@Component
 public class OutboxPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);

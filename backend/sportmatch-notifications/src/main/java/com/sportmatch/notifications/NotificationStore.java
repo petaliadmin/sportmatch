@@ -12,9 +12,11 @@ import java.util.UUID;
 public class NotificationStore {
 
     private final JdbcClient jdbc;
+    private final EmailSender email;
 
-    public NotificationStore(JdbcClient jdbc) {
+    public NotificationStore(JdbcClient jdbc, EmailSender email) {
         this.jdbc = jdbc;
+        this.email = email;
     }
 
     /** Consommateur idempotent : un même eventId reçu deux fois ne crée qu'une notification. */
@@ -30,7 +32,8 @@ public class NotificationStore {
         if (firstTime == 0) {
             return;
         }
-        NotificationFactory.from(event).ifPresent(n -> jdbc.sql("""
+        NotificationFactory.from(event).ifPresent(n -> {
+            jdbc.sql("""
                         insert into notification (id, user_id, title, body, source_event_id)
                         values (:id, :userId, :title, :body, :eventId)
                         """)
@@ -39,7 +42,9 @@ public class NotificationStore {
                 .param("title", n.title())
                 .param("body", n.body())
                 .param("eventId", event.eventId())
-                .update());
+                .update();
+            email.send(event.payload().path("userEmail").asText(null), n);
+        });
     }
 
     public List<Notification> forUser(String userId) {

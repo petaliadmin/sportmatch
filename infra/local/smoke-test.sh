@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Test de bout en bout (e2e) de la phase 1, joué en local et dans la CI.
 # Parcours : catalogue public → connexion Keycloak → création de match → inscription d'un 2e joueur
-#            → événement Kafka → notification reçue par l'organisatrice.
+#            → notification via Kafka → chat du match → réservation de créneau (démo) + e-mail → annulation.
 set -euo pipefail
 
 GATEWAY="${GATEWAY:-http://localhost:8080}"
 KEYCLOAK="${KEYCLOAK:-http://localhost:8180}"
+MAILPIT="${MAILPIT:-http://localhost:8025}"
 TOKEN_URL="$KEYCLOAK/realms/sportmatch/protocol/openid-connect/token"
 
 step() { printf '\n\033[1;32m▶ %s\033[0m\n' "$*"; }
@@ -58,10 +59,48 @@ step "7. Notification reçue par Awa via Kafka (outbox → topic → sportmatch-
 has_notification() { curl -fsS "$GATEWAY/api/v1/notifications" -H "Authorization: Bearer $AWA" | grep -q "a rejoint"; }
 retry 30 2 has_notification || fail "Aucune notification reçue"
 
-step "8. Services amorcés joignables via la gateway"
-for svc in events business admin chat; do
+step "8. Chat du match : conversation créée via Kafka, message de Moussa lu par Awa"
+conversation_id() { curl -fsS "$GATEWAY/api/v1/chat/conversations/by-match/$MATCH_ID" -H "Authorization: Bearer $1" | json_field conversationId; }
+has_conversation() { [ -n "$(conversation_id "$MOUSSA" 2>/dev/null)" ]; }
+retry 30 2 has_conversation || fail "Conversation du match non créée"
+CONV=$(conversation_id "$MOUSSA")
+TEXT="On se retrouve 15 min avant ? #$RANDOM"
+curl -fsS -X POST "$GATEWAY/api/v1/chat/conversations/$CONV/messages" \
+  -H "Authorization: Bearer $MOUSSA" -H 'Content-Type: application/json' -d "{\"body\":\"$TEXT\"}" > /dev/null
+curl -fsS "$GATEWAY/api/v1/chat/conversations/$CONV/messages" -H "Authorization: Bearer $AWA" | grep -qF "$TEXT" || fail "Message absent"
+CODE=$(curl -s -o /dev/null -w '%{http_code}' "$GATEWAY/api/v1/chat/conversations/$CONV/messages" -H "Authorization: Bearer $(token_for fatou.orga)")
+[ "$CODE" = "403" ] || fail "Un non-participant lit le chat (code $CODE)"
+echo "  ✓ conversation $CONV, message reçu, accès refusé aux non-participants"
+
+step "9. Réservation de démonstration d'un créneau (sans paiement)"
+COURT=c0a7c1e0-0001-4b00-9000-000000000002
+curl -fsS "$GATEWAY/api/v1/business/courts" | grep -q "$COURT" || fail "Terrains réservables absents"
+SLOT=$(printf '2031-%02d-%02dT%02d:00:00Z' $((RANDOM % 12 + 1)) $((RANDOM % 28 + 1)) $((RANDOM % 14 + 8)))
+BOOKING=$(curl -fsS -X POST "$GATEWAY/api/v1/business/bookings" -H "Authorization: Bearer $AWA" \
+  -H 'Content-Type: application/json' -d "{\"courtId\":\"$COURT\",\"startsAt\":\"$SLOT\",\"hours\":1}")
+BOOKING_ID=$(echo "$BOOKING" | sed -nE 's/^\{"id":"([^"]+)".*/\1/p')
+[ -n "$BOOKING_ID" ] || fail "Réservation échouée : $BOOKING"
+echo "  ✓ créneau $SLOT réservé ($BOOKING_ID)"
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$GATEWAY/api/v1/business/bookings" -H "Authorization: Bearer $MOUSSA" \
+  -H 'Content-Type: application/json' -d "{\"courtId\":\"$COURT\",\"startsAt\":\"$SLOT\",\"hours\":1}")
+[ "$CODE" = "409" ] || fail "Double réservation non bloquée (code $CODE)"
+echo "  ✓ double réservation refusée (409)"
+
+step "10. Confirmation : notification in-app + e-mail (Mailpit)"
+booking_notified() { curl -fsS "$GATEWAY/api/v1/notifications" -H "Authorization: Bearer $AWA" | grep -q "aucun paiement"; }
+retry 30 2 booking_notified || fail "Notification de réservation absente"
+mail_received() { curl -fsS "$MAILPIT/api/v1/messages" | grep -q "awa.player@demo.sportmatch.test"; }
+retry 30 2 mail_received || fail "E-mail de confirmation absent de Mailpit"
+echo "  ✓ notification et e-mail reçus"
+
+step "11. Annulation (le créneau est libéré)"
+curl -fsS -X POST "$GATEWAY/api/v1/business/bookings/$BOOKING_ID/cancel" -H "Authorization: Bearer $AWA" | grep -q '"status":"CANCELLED"' \
+  || fail "Annulation échouée"
+
+step "12. Services amorcés joignables via la gateway"
+for svc in events admin; do
   curl -fsS "$GATEWAY/api/v1/$svc/status" -H "Authorization: Bearer $AWA" | grep -q "sportmatch-$svc" || fail "$svc injoignable"
   echo "  ✓ sportmatch-$svc"
 done
 
-printf '\n\033[1;32m✅ Phase 1 validée : le parcours de bout en bout fonctionne.\033[0m\n'
+printf '\n\033[1;32m✅ Phase 2A validée : matchs, notifications, chat et réservations fonctionnent de bout en bout.\033[0m\n'
