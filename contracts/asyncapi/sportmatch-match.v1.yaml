@@ -1,0 +1,67 @@
+asyncapi: 3.0.0
+info:
+  title: SportMatch — événements de match
+  version: 1.0.0-beta
+  description: |
+    Publiés par sportmatch-app via le pattern outbox (livraison au moins une fois, clé = matchId,
+    ordre garanti par match). Les consommateurs DOIVENT dédupliquer sur eventId.
+    Échecs consommateur : 3 tentatives puis dead letter queue sportmatch.app.match.v1.DLT.
+channels:
+  match:
+    address: sportmatch.app.match.v1
+    messages:
+      matchCreated: { $ref: "#/components/messages/MatchCreated" }
+      playerJoined: { $ref: "#/components/messages/PlayerJoined" }
+operations:
+  publishMatchEvents:
+    action: send
+    channel: { $ref: "#/channels/match" }
+  consumeMatchEventsForNotifications:
+    action: receive
+    channel: { $ref: "#/channels/match" }
+    summary: sportmatch-notifications (groupe sportmatch-notifications)
+components:
+  messages:
+    MatchCreated:
+      name: match.created
+      payload:
+        allOf:
+          - $ref: "#/components/schemas/Envelope"
+          - type: object
+            properties:
+              payload:
+                type: object
+                properties:
+                  matchId: { type: string, format: uuid }
+                  organizerId: { type: string }
+                  venueId: { type: string, format: uuid }
+                  sport: { type: string }
+                  startsAt: { type: string, format: date-time }
+                  maxPlayers: { type: integer }
+    PlayerJoined:
+      name: match.player-joined
+      payload:
+        allOf:
+          - $ref: "#/components/schemas/Envelope"
+          - type: object
+            properties:
+              payload:
+                type: object
+                properties:
+                  matchId: { type: string, format: uuid }
+                  playerId: { type: string }
+                  organizerId: { type: string }
+                  participants: { type: integer }
+                  maxPlayers: { type: integer }
+                  status: { type: string, enum: [OPEN, FULL] }
+  schemas:
+    Envelope:
+      type: object
+      required: [eventId, eventType, occurredAt, source, aggregateId, payload]
+      properties:
+        eventId: { type: string, format: uuid }
+        eventType: { type: string }
+        occurredAt: { type: string, format: date-time }
+        source: { type: string, example: sportmatch-app }
+        aggregateId: { type: string }
+        payload: { type: object }

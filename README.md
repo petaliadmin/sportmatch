@@ -30,3 +30,14 @@ npm run typecheck
 5. **Événement** : Event Planner → « Générer ma sélection » → panier → devis → budget
 
 Documentation : [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) · [AI_CONTEXT.md](./AI_CONTEXT.md)
+
+## Backend (bêta 1.0.0) — phase 1 en local
+
+Microservices Spring Boot, gateway, PostgreSQL, Liquibase, Kafka, Redis et Keycloak dans `backend/` et `infra/local/`.
+
+```bash
+make up      # démarre tout (Docker requis, 8 Go de RAM conseillés)
+make smoke   # parcours de bout en bout
+```
+
+Guide pas à pas : [docs/integration/PHASE-1-LOCAL.md](docs/integration/PHASE-1-LOCAL.md).

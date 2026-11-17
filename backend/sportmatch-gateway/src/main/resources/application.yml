@@ -1,0 +1,39 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: sportmatch-gateway
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # En local, seule la signature (JWKS) est vérifiée : l'émetteur diffère entre
+          # http://localhost:8180 (navigateur) et http://keycloak:8080 (réseau Docker).
+          # En staging/production, issuer-uri est renseigné et vérifié (voir DAT §9).
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8180/realms/sportmatch/protocol/openid-connect/certs}
+
+sportmatch:
+  services:
+    app: ${APP_URI:http://localhost:8081}
+    events: ${EVENTS_URI:http://localhost:8082}
+    business: ${BUSINESS_URI:http://localhost:8083}
+    admin: ${ADMIN_URI:http://localhost:8084}
+    notifications: ${NOTIFICATIONS_URI:http://localhost:8085}
+    chat: ${CHAT_URI:http://localhost:8086}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}

@@ -1,0 +1,79 @@
+# Chaîne de validation du backend : tests unitaires → tests d'intégration → tests de bout en bout.
+# Une PR vers develop ou production ne peut être fusionnée que si les trois jobs sont verts
+# (à activer dans Settings → Branches → règles de protection).
+name: backend-ci
+
+on:
+  push:
+    branches: [develop, production]
+    paths: ["backend/**", "infra/local/**", "contracts/**", ".github/workflows/backend-ci.yml"]
+  pull_request:
+    branches: [develop, production]
+    paths: ["backend/**", "infra/local/**", "contracts/**", ".github/workflows/backend-ci.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: 1 · Tests unitaires
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: backend/**/pom.xml
+      - run: mvn -B -ntp test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: surefire-reports
+          path: backend/**/target/surefire-reports/
+
+  integration-tests:
+    name: 2 · Tests d'intégration (Testcontainers)
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: backend/**/pom.xml
+      - run: mvn -B -ntp verify
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: failsafe-reports
+          path: backend/**/target/failsafe-reports/
+
+  e2e:
+    name: 3 · Tests de bout en bout (Docker Compose)
+    needs: integration-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Démarrer l'environnement complet
+        run: docker compose -f infra/local/docker-compose.yml up -d --build --wait --wait-timeout 600
+      - name: Parcours e2e
+        run: bash infra/local/smoke-test.sh
+      - name: Journaux en cas d'échec
+        if: failure()
+        run: docker compose -f infra/local/docker-compose.yml logs --no-color --tail=300
+      - name: Nettoyage
+        if: always()
+        run: docker compose -f infra/local/docker-compose.yml down -v
