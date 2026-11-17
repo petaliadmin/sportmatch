@@ -1,0 +1,4 @@
+# Scripts shell et fichiers montés dans les conteneurs : toujours en LF (indispensable sous Windows)
+*.sh text eol=lf
+infra/** text eol=lf
+Makefile text eol=lf
