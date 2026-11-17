@@ -5,7 +5,7 @@ name: backend-ci
 
 on:
   push:
-    branches: [develop, production]
+    branches: [develop, production, "feature/**", "fix/**"]
     paths: ["backend/**", "infra/local/**", "contracts/**", ".github/workflows/backend-ci.yml"]
   pull_request:
     branches: [develop, production]
