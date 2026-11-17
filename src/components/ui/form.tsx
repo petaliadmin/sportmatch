@@ -1,6 +1,7 @@
 "use client";
 import { forwardRef, useId } from "react";
 import { ChevronDown } from "lucide-react";
+import { play } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 
 const field =
@@ -49,7 +50,7 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
       role="switch"
       aria-checked={checked}
       aria-label={label}
-      onClick={() => onChange(!checked)}
+      onClick={() => { play("select"); onChange(!checked); }}
       className={cn("relative h-6 w-11 shrink-0 rounded-full transition", checked ? "bg-primary" : "bg-border")}
     >
       <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all", checked ? "left-[22px]" : "left-0.5")} />
@@ -76,7 +77,7 @@ export function Segmented<T extends string>({ options, value, onChange, size = "
           key={o.value}
           role="radio"
           aria-checked={value === o.value}
-          onClick={() => onChange(o.value)}
+          onClick={() => { if (o.value !== value) play("tap"); onChange(o.value); }}
           className={cn(
             "rounded-md font-semibold transition",
             size === "sm" ? "px-2.5 py-1 text-xs" : "px-3.5 py-1.5 text-sm",
@@ -96,7 +97,7 @@ export function Chip({ active, onClick, children, icon }: { active?: boolean; on
     <button
       type="button"
       aria-pressed={active}
-      onClick={onClick}
+      onClick={() => { play("tap"); onClick?.(); }}
       className={cn(
         "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition [&>svg]:h-4 [&>svg]:w-4",
         active ? "border-primary bg-primary text-primary-fg" : "border-border bg-surface text-fg hover:border-muted",

@@ -1,7 +1,8 @@
 "use client";
-import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
+import { EmptyNetIllustration } from "../visual/illustrations";
 
 export function Skeleton({ className }: { className?: string }) {
   return (
@@ -31,7 +32,7 @@ export function CardSkeleton({ rows = 3 }: { rows?: number }) {
 export function EmptyState({ icon, title, description, action, className }: { icon?: React.ReactNode; title: string; description?: string; action?: React.ReactNode; className?: string }) {
   return (
     <div className={cn("flex flex-col items-center rounded-lg border border-dashed border-border px-6 py-10 text-center", className)}>
-      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-2 text-muted [&>svg]:h-5 [&>svg]:w-5">{icon ?? <Inbox />}</div>
+      {icon ? <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-2 text-muted [&>svg]:h-5 [&>svg]:w-5">{icon}</div> : <EmptyNetIllustration className="mb-2 h-24 w-32 animate-pop" />}
       <p className="font-semibold">{title}</p>
       {description && <p className="mt-1 max-w-xs text-sm text-muted">{description}</p>}
       {action && <div className="mt-4">{action}</div>}

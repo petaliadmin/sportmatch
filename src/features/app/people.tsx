@@ -2,6 +2,9 @@
 import { Award, BarChart3, Bell, Calendar, CalendarCheck, ChevronRight, CreditCard, Globe, History, LogOut, MessageCircle, Moon, Search, Send, Settings as SettingsIcon, Shield, Trophy, UserPlus, Users, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+import { Volume2 } from "lucide-react";
+import { levelOf, levelTitle, XP_PER_LEVEL } from "@/lib/store";
+import { CountUp } from "@/components/fx/fx";
 import { MobileHeader } from "@/components/shells/mobile-shell";
 import { Avatar, Badge, Button, Card, Chip, EmptyState, Progress, ScoreRing, Segmented, Switch, Tabs } from "@/components/ui";
 import { SportVisual } from "@/components/visual/sport-visual";
@@ -267,6 +270,8 @@ export function Chat() {
 
 export function Profile() {
   const { navigate } = useRouter();
+  const { xp, badges, streakWeeks } = useStore();
+  const lvl = levelOf(xp);
   const me = playerById(ME);
   const links = [
     { l: "Classement & statistiques", i: BarChart3, r: "app-stats" },
@@ -286,6 +291,20 @@ export function Profile() {
         <div className="mt-5 grid grid-cols-3 gap-2 text-center">
           {[{ l: "Matchs", v: me.matches }, { l: "Organisés", v: 23 }, { l: "Fair-play", v: me.rating }].map((s) => <Card key={s.l} className="p-3"><p className="tabular font-display text-xl font-bold">{s.v}</p><p className="text-2xs text-muted">{s.l}</p></Card>)}
         </div>
+        <Card className="mt-4 p-4">
+          <div className="flex items-center justify-between"><p className="font-display font-bold">Niveau {lvl} · {levelTitle(lvl)}</p><span className="tabular text-xs text-muted"><CountUp value={xp} /> XP</span></div>
+          <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-surface-2"><div className="h-full rounded-full bg-primary transition-[width] duration-700" style={{ width: `${((xp % XP_PER_LEVEL) / XP_PER_LEVEL) * 100}%` }} /></div>
+          <p className="mt-1.5 text-2xs text-muted">{XP_PER_LEVEL - (xp % XP_PER_LEVEL)} XP avant « {levelTitle(lvl + 1)} » · série de {streakWeeks} semaines 🔥</p>
+          <p className="mt-4 text-sm font-semibold">Badges <span className="text-muted">{badges.filter((b) => b.unlocked).length}/{badges.length}</span></p>
+          <div className="mt-2 grid grid-cols-4 gap-2">
+            {badges.map((b) => (
+              <div key={b.id} title={b.desc} className={b.unlocked ? "flex flex-col items-center gap-1 rounded-lg bg-primary/10 p-2 text-center ring-1 ring-primary/30" : "flex flex-col items-center gap-1 rounded-lg bg-surface-2/60 p-2 text-center opacity-50 grayscale"}>
+                <span className="text-2xl">{b.unlocked ? b.emoji : "🔒"}</span>
+                <span className="text-[10px] font-semibold leading-tight">{b.label}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
         <Card className="mt-4 divide-y divide-border">
           {links.map((x) => <button key={x.l} onClick={() => navigate(x.r)} className="flex w-full items-center gap-3 p-3.5 text-left text-sm hover:bg-surface-2/50"><x.i className="h-4 w-4 text-muted" /><span className="flex-1 font-medium">{x.l}</span><ChevronRight className="h-4 w-4 text-muted" /></button>)}
         </Card>
@@ -303,7 +322,7 @@ export function Profile() {
 
 export function Settings() {
   const { back, navigate } = useRouter();
-  const { theme, setTheme, lang, setLang, toast } = useStore();
+  const { theme, setTheme, lang, setLang, toast, soundOn, setSoundOn } = useStore();
   const [push, setPush] = useState(true);
   const [smart, setSmart] = useState(true);
   const [loc, setLoc] = useState(true);
@@ -313,6 +332,7 @@ export function Settings() {
       <div className="space-y-4 p-4">
         <Card className="divide-y divide-border">
           <div className="flex items-center gap-3 p-3.5"><Moon className="h-4 w-4 text-muted" /><span className="flex-1 text-sm font-medium">Mode sombre</span><Switch label="Mode sombre" checked={theme === "dark"} onChange={(v) => setTheme(v ? "dark" : "light")} /></div>
+          <div className="flex items-center gap-3 p-3.5"><Volume2 className="h-4 w-4 text-muted" /><span className="flex-1"><span className="block text-sm font-medium">Sons et effets</span><span className="text-2xs text-muted">Sifflet, célébrations, XP · vibrations sur mobile</span></span><Switch label="Sons et effets" checked={soundOn} onChange={setSoundOn} /></div>
           <div className="flex items-center gap-3 p-3.5"><Globe className="h-4 w-4 text-muted" /><span className="flex-1 text-sm font-medium">Langue</span><Segmented size="sm" value={lang} onChange={setLang} options={[{ value: "fr", label: "FR" }, { value: "en", label: "EN" }]} /></div>
           <div className="flex items-center gap-3 p-3.5"><Wallet className="h-4 w-4 text-muted" /><span className="flex-1 text-sm font-medium">Devise</span><span className="text-sm text-muted">FCFA (XOF)</span></div>
         </Card>

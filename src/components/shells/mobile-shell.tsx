@@ -3,8 +3,10 @@ import { CalendarCheck, Compass, Home, Swords, UserRound } from "lucide-react";
 import { useRouter } from "@/lib/router";
 import { useStore } from "@/lib/store";
 import { t } from "@/lib/i18n";
+import { play } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { DemoBadge, Logo } from "./brand";
+import { SoundToggle, ThemeToggle } from "./console-shell";
 
 const tabs = [
   { route: "app-home", key: "home", icon: Home, match: ["app-home", "app-notifications", "app-messages"] },
@@ -58,7 +60,8 @@ export function MobileShell({ children, hideNav }: { children: React.ReactNode; 
             </button>
           ))}
         </nav>
-        <DemoBadge className="mt-6 inline-block" />
+        <div className="mt-6 flex items-center gap-2"><DemoBadge /><SoundToggle /><ThemeToggle /></div>
+        <p className="mt-2 text-2xs text-muted">🔊 Active le son : sifflet, célébrations, XP.</p>
       </aside>
 
       <div
@@ -82,11 +85,11 @@ export function MobileShell({ children, hideNav }: { children: React.ReactNode; 
                 return (
                   <li key={tab.route}>
                     <button
-                      onClick={() => navigate(tab.route)}
+                      onClick={() => { if (!active) play("tap"); navigate(tab.route); }}
                       aria-current={active ? "page" : undefined}
                       className={cn("flex w-full flex-col items-center gap-0.5 rounded-md py-1.5 text-[10.5px] font-semibold transition", active ? "text-fg" : "text-muted hover:text-fg")}
                     >
-                      <span className={cn("flex h-7 w-12 items-center justify-center rounded-full transition", active && "bg-primary text-primary-fg")}>
+                      <span className={cn("flex h-7 w-12 items-center justify-center rounded-full transition-all duration-300", active ? "scale-100 bg-primary text-primary-fg" : "scale-90")}>
                         <Icon className="h-[18px] w-[18px]" />
                       </span>
                       {t(lang, tab.key)}

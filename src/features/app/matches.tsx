@@ -1,12 +1,14 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Calendar, Check, ChevronRight, Clock, Copy, Crown, Lock, MapPin, MessageCircle, Plus, Search, Send, Shuffle, Sparkles, Trophy, UserMinus, Users, Wallet } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { MobileHeader } from "@/components/shells/mobile-shell";
 import { Avatar, AvatarStack, Badge, Button, Card, Chip, EmptyState, Field, Input, Modal, Progress, ScoreRing, Segmented, Select, Stepper, Tabs, Textarea } from "@/components/ui";
 import { SportVisual } from "@/components/visual/sport-visual";
+import { Photo } from "@/components/visual/photo";
+import { play } from "@/lib/sound";
 import { compatibility, ME, playerById, players } from "@/data/players";
 import type { Level, Match, Player } from "@/data/types";
 import { venueById, venues } from "@/data/venues";
@@ -66,7 +68,7 @@ export function MatchesList() {
 
 export function MatchDetail() {
   const { params, navigate, back } = useRouter();
-  const { matches, joinMatch, leaveMatch, toast, pushNotification } = useStore();
+  const { matches, joinMatch, leaveMatch, toast, pushNotification, celebrate, awardXp } = useStore();
   const m = matches.find((x) => x.id === params.id) ?? matches[0];
   const v = venueById(m.venueId);
   const joined = m.participants.includes(ME);
@@ -81,6 +83,9 @@ export function MatchDetail() {
     await new Promise((r) => setTimeout(r, 700));
     if (confirm === "join") {
       joinMatch(m.id);
+      celebrate("whistle");
+      awardXp(50, "Match rejoint", "first-match");
+      if (parseInt(m.time) >= 21) setTimeout(() => awardXp(20, "Match nocturne", "night-owl"), 900);
       toast({ title: "Place réservée 🎉", body: m.pricePerPlayer ? `Paiement de ${fcfa(m.pricePerPlayer)} simulé.` : "Match gratuit." });
       pushNotification({ kind: "match", title: "Tu participes à " + m.title, body: `${dayText(m.dayOffset)} · ${m.time}` });
     } else {
@@ -95,7 +100,7 @@ export function MatchDetail() {
     <div className="pb-8">
       <div className="relative">
         <MobileHeader transparent onBack={back} />
-        <SportVisual sport={m.sport} seed={Number(m.id.slice(1)) + 3} className="h-52" />
+        <Photo slot={`venue-${m.venueId}`} sport={m.sport} seed={Number(m.id.slice(1)) + 3} className="h-52" kenBurns />
         <div className="absolute bottom-4 left-5 right-5 text-white">
           <Badge className="bg-black/50 text-white backdrop-blur">{sportEmoji(m.sport)} {sportLabel(m.sport)} · {m.format}</Badge>
           <h1 className="mt-2 font-display text-2xl font-extrabold drop-shadow">{m.title}</h1>
@@ -220,7 +225,7 @@ const formats: Record<string, { label: string; capacity: number }[]> = {
 
 export function CreateMatch() {
   const { params, navigate, back } = useRouter();
-  const { upsertMatch, toast, pushNotification } = useStore();
+  const { upsertMatch, toast, pushNotification, celebrate, awardXp } = useStore();
   const [step, setStep] = useState(0);
   const { register, handleSubmit, watch, setValue, trigger, formState: { errors, isSubmitting } } = useForm<MatchForm>({
     resolver: zodResolver(matchSchema),
@@ -232,7 +237,7 @@ export function CreateMatch() {
 
   const nextStep = async () => {
     const fields: (keyof MatchForm)[][] = [["sport", "format", "title"], ["venueId", "time", "durationMin"], ["capacity", "level", "pricePerPlayer"], []];
-    if (await trigger(fields[step])) setStep((s) => Math.min(3, s + 1));
+    if (await trigger(fields[step])) { play("kick"); setStep((s) => Math.min(3, s + 1)); } else play("error");
   };
 
   const onSubmit = async (data: MatchForm) => {
@@ -241,6 +246,8 @@ export function CreateMatch() {
     const m: Match = { id: "m" + uid(), ...parsed, level: parsed.level as Level, sport: parsed.sport as Match["sport"], date: "", participants: [ME], organizerId: ME, paidCount: 1 };
     upsertMatch(m);
     pushNotification({ kind: "smartfill", title: "Smart Fill activé", body: `On cherche ${m.capacity - 1} joueurs pour ${m.title}.` });
+    celebrate("whistle");
+    awardXp(120, "Match publié", "organizer");
     toast({ title: "Match publié 🎉", body: "Partage-le ou laisse Smart Fill compléter l’équipe." });
     navigate("app-smart-fill", { id: m.id });
   };
@@ -333,13 +340,20 @@ export function CreateMatch() {
 
 export function SmartFill() {
   const { params, navigate, back } = useRouter();
-  const { matches, joinMatch, toast, pushNotification } = useStore();
+  const { matches, joinMatch, toast, pushNotification, celebrate, awardXp } = useStore();
   const m = matches.find((x) => x.id === params.id) ?? matches[0];
   const left = m.capacity - m.participants.length;
   const [maxDist, setMaxDist] = useState(5);
+  const wasOpen = useRef(left > 0);
+  useEffect(() => {
+    if (wasOpen.current && left === 0) {
+      wasOpen.current = false;
+      setTimeout(() => { celebrate("cheer"); awardXp(150, "Équipe complète", "full-house"); }, 400);
+    }
+  }, [left, celebrate, awardXp]);
   const [invited, setInvited] = useState<Record<string, "pending" | "accepted">>({});
   const [scanning, setScanning] = useState(true);
-  useEffect(() => { const t = setTimeout(() => setScanning(false), 900); return () => clearTimeout(t); }, []);
+  useEffect(() => { const t = setTimeout(() => setScanning(false), 2200); return () => clearTimeout(t); }, []);
 
   const candidates = useMemo(() => players
     .filter((p) => !m.participants.includes(p.id) && p.distanceKm <= maxDist)
@@ -348,8 +362,10 @@ export function SmartFill() {
 
   const invite = (p: Player) => {
     setInvited((s) => ({ ...s, [p.id]: "pending" }));
+    play("kick");
     toast({ title: `Invitation envoyée à ${p.name.split(" ")[0]}`, tone: "info" });
     setTimeout(() => {
+      play("notify");
       setInvited((s) => ({ ...s, [p.id]: "accepted" }));
       joinMatch(m.id, p.id);
       pushNotification({ kind: "smartfill", title: `${p.name} a accepté`, body: m.title });
@@ -385,7 +401,18 @@ export function SmartFill() {
         <p className="text-2xs text-muted">Score = disponibilité 30 % · distance 25 % · niveau 20 % · sport & poste 15 % · fiabilité 10 %</p>
 
         {scanning ? (
-          <Card className="flex items-center gap-3 p-4"><Sparkles className="h-5 w-5 animate-pulse2 text-primary-ink" /><p className="text-sm">Analyse des joueurs disponibles autour de {venueById(m.venueId).district}…</p></Card>
+          <Card className="flex flex-col items-center gap-4 overflow-hidden p-6">
+            <div className="relative h-44 w-44">
+              {[0, 1, 2].map((r) => <span key={r} className="absolute inset-0 rounded-full border border-primary/40" style={{ transform: `scale(${0.4 + r * 0.3})` }} />)}
+              <span className="absolute inset-0 animate-ripple rounded-full border-2 border-primary/60" />
+              <span className="absolute inset-0 animate-radar rounded-full bg-[conic-gradient(from_0deg,rgb(var(--primary)/.45),transparent_28%)]" />
+              {[[22, 30], [70, 18], [80, 64], [30, 74], [56, 46], [14, 52]].map(([x, y], i) => (
+                <span key={i} className="absolute h-2.5 w-2.5 animate-pop rounded-full bg-primary shadow-[0_0_12px_rgb(var(--primary))]" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${300 + i * 260}ms` }} />
+              ))}
+              <span className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white ring-4 ring-primary/40" />
+            </div>
+            <p className="text-center text-sm">Recherche de joueurs compatibles autour de <b>{venueById(m.venueId).district}</b>…</p>
+          </Card>
         ) : candidates.length === 0 ? (
           <EmptyState title="Aucun joueur dans ce rayon" description="Augmente le rayon de recherche." />
         ) : (

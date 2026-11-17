@@ -188,3 +188,52 @@ Shells (`src/components/shells`) : `MobileShell` + `MobileHeader`, `ConsoleShell
 | `animate-fade-up` 280 ms | `Curves.easeOutCubic`, 280 ms |
 | `Modal` (mobile) | `showModalBottomSheet` |
 | `DateStrip` / `SlotGrid` | `ListView.horizontal` / `Wrap` de `ChoiceChip` |
+
+---
+
+## 8. Logo
+
+- **Concept** : un « S » tracé comme une course, le ballon en avant. L'inclinaison (−8°) donne l'élan, les deux traînées la vitesse.
+- **Fichiers** : `src/components/shells/brand.tsx` (`LogoMark`, `Logo`), favicon `src/app/icon.svg`.
+- **Variantes** : symbole seul (app icon, favicon) · symbole + logotype `SPORT`**`MATCH`** (Manrope 800, −2 % d'interlettrage, « MATCH » en `primary-ink`).
+- **Animation** (`<LogoMark animated />`) : apparition du carré (pop 500 ms) → tracé du S (800 ms) → le ballon roule en place (rebond) → traînées. Total ≈ 1,5 s, utilisée au splash et dans le design system.
+- **Règles** : toujours sur lime ou en monochrome ; zone de protection = rayon du ballon ; taille minimale 16 px ; ne pas déformer ni recolorer le S.
+
+## 9. Illustrations (`src/components/visual/illustrations.tsx`)
+
+Famille géométrique plate, palette de marque uniquement, trait 2,5–3 px, personnages sans visage (jamais de personne réelle).
+
+| Illustration | Usage |
+|---|---|
+| `PlayerIllustration` | Onboarding 1, hero du hub |
+| `StadiumIllustration` | Onboarding 2, événements |
+| `TeamIllustration` | Onboarding 3, Smart Fill |
+| `TrophyIllustration` | Montée de niveau, récompenses |
+| `WhistleIllustration`, `CalendarIllustration` | Arbitrage, réservations |
+| `EmptyNetIllustration` | État vide par défaut (`EmptyState` sans icône) |
+
+**Photos** : `Photo` (`components/visual/photo.tsx`) lit `data/media.ts` (Unsplash, crédit photographe au survol) et retombe sur `SportVisual` si l'emplacement est vide ou si l'image échoue.
+
+## 10. Sons & haptique (`src/lib/sound.ts`)
+
+Synthétisés en Web Audio : aucun fichier, aucune latence réseau. Coupables partout (bouton 🔊 dans les en-têtes, Paramètres) ; désactivés par défaut si `prefers-reduced-motion`.
+
+| Son | Déclencheur |
+|---|---|
+| `tap` / `select` | Onglets, chips, créneaux, interrupteurs |
+| `kick` | Étape suivante d'un assistant, invitation Smart Fill |
+| `whistle` | Match rejoint, match publié, fin d'onboarding |
+| `success` | Réservation confirmée, défi réussi |
+| `notify` | Notification, joueur qui accepte, badge débloqué |
+| `xp` / `levelup` | Gain d'XP / niveau supérieur |
+| `cheer` | Équipe complète (Smart Fill) |
+| `error` | Paiement refusé, validation de formulaire en échec |
+
+Règles : < 600 ms, gain ≤ 0,18, jamais au survol ni au défilement. `haptic()` ajoute une vibration courte sur mobile.
+
+## 11. Motion & gamification
+
+- **Effets** (`components/fx`) : `Confetti` (canvas, 2,4 s), `CountUp`, `Reveal` (apparition au défilement), `LiveDot`, `Marquee` (fil d'activité), radar Smart Fill, ondes de confirmation, Ken Burns sur les photos.
+- **Boucle d'engagement** : XP par action (profil 100 · match rejoint 50 · terrain réservé 80 · match publié 120 · équipe complète 150 · défi 200) → niveaux de 500 XP avec titres (Rookie → Légende de Dakar) → badges (8) → série hebdomadaire 🔥 → défi de la semaine.
+- **Moments forts** : `celebrate()` = confettis + son + vibration ; `awardXp()` = « +XP » flottant ; montée de niveau en modale (Échap pour fermer) ; badge débloqué en carte (fermeture auto 4,5 s).
+- **Garde-fous** : récompenses liées à de vraies actions sportives (jouer, organiser, être fiable), jamais à du temps passé dans l'app ; aucune mécanique de perte ou de pression artificielle.

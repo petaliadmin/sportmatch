@@ -1,7 +1,7 @@
 "use client";
 import { Clock, MapPin, Users } from "lucide-react";
 import { Badge, Card } from "@/components/ui";
-import { SportVisual } from "@/components/visual/sport-visual";
+import { Photo } from "@/components/visual/photo";
 import { venueById } from "@/data/venues";
 import type { Match, Venue } from "@/data/types";
 import { useRouter } from "@/lib/router";
@@ -29,7 +29,7 @@ export function MatchCard({ m, compact }: { m: Match; compact?: boolean }) {
   return (
     <Card interactive onClick={() => navigate("app-match", { id: m.id })} className={cn("overflow-hidden", compact && "w-[270px] shrink-0")}>
       <div className="relative">
-        <SportVisual sport={m.sport} seed={Number(m.id.slice(1))} className="h-28" />
+        <Photo slot={`venue-${m.venueId}`} sport={m.sport} seed={Number(m.id.slice(1))} className="h-28" credit={false} />
         <div className="absolute inset-x-3 top-3 flex items-center justify-between">
           <Badge className="bg-black/50 text-white backdrop-blur">{sportEmoji(m.sport)} {sportLabel(m.sport)} · {m.format}</Badge>
           {full ? <Badge tone="error" className="bg-error text-white">Complet</Badge> : left <= 2 ? <Badge className="bg-warning text-[#101A17]">{left} place{left > 1 ? "s" : ""}</Badge> : null}
@@ -56,7 +56,7 @@ export function MatchCard({ m, compact }: { m: Match; compact?: boolean }) {
 export function VenueRow({ v, onClick, active }: { v: Venue; onClick: () => void; active?: boolean }) {
   return (
     <Card interactive onClick={onClick} className={cn("flex gap-3 p-2.5", active && "border-primary")}>
-      <SportVisual sport={v.sports[0]} seed={Number(v.id.slice(1))} className="h-20 w-20 shrink-0 rounded-md" />
+      <Photo slot={`venue-${v.id}`} sport={v.sports[0]} seed={Number(v.id.slice(1))} className="h-20 w-20 shrink-0 rounded-md" credit={false} />
       <div className="min-w-0 flex-1 py-0.5">
         <div className="flex items-start justify-between gap-2">
           <p className="truncate text-sm font-semibold">{v.name}</p>

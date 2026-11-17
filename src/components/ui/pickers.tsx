@@ -1,6 +1,7 @@
 "use client";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
+import { play } from "@/lib/sound";
 import { cn, DAYS_FR, MONTHS_FR, nextDays } from "@/lib/utils";
 
 /** Horizontal day picker (mobile-first date picker). */
@@ -15,7 +16,7 @@ export function DateStrip({ value, onChange, days = 14 }: { value: Date; onChang
             key={i}
             role="option"
             aria-selected={active}
-            onClick={() => onChange(d)}
+            onClick={() => { play("tap"); onChange(d); }}
             className={cn(
               "flex w-14 shrink-0 flex-col items-center rounded-lg border py-2 transition",
               active ? "border-primary bg-primary text-primary-fg" : "border-border bg-surface hover:border-muted",
@@ -45,12 +46,12 @@ export function SlotGrid({ slots, selected, onToggle }: { slots: Slot[]; selecte
             key={s.time}
             disabled={disabled}
             aria-pressed={sel}
-            onClick={() => onToggle(s.time)}
+            onClick={() => { play(sel ? "tap" : "select"); onToggle(s.time); }}
             className={cn(
-              "relative rounded-md border px-2 py-2.5 text-left transition",
+              "relative rounded-md border px-2 py-2.5 text-left transition active:scale-95",
               disabled && "cursor-not-allowed border-border bg-surface-2/50 text-muted line-through opacity-60",
               !disabled && !sel && "border-border bg-surface hover:border-primary/60",
-              sel && "border-primary bg-primary/15 ring-1 ring-primary",
+              sel && "animate-pop border-primary bg-primary/15 ring-1 ring-primary",
             )}
           >
             <div className="tabular text-sm font-bold">{s.time}</div>

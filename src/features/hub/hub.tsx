@@ -1,7 +1,8 @@
 "use client";
 import { ArrowUpRight, Briefcase, Building2, CalendarRange, Palette, ShieldCheck, Smartphone } from "lucide-react";
-import { DemoBadge, Logo } from "@/components/shells/brand";
-import { ThemeToggle } from "@/components/shells/console-shell";
+import { DemoBadge, Logo, LogoMark } from "@/components/shells/brand";
+import { PlayerIllustration } from "@/components/visual/illustrations";
+import { SoundToggle, ThemeToggle } from "@/components/shells/console-shell";
 import { Badge, Card } from "@/components/ui";
 import { SportVisual } from "@/components/visual/sport-visual";
 import { useRouter } from "@/lib/router";
@@ -27,9 +28,11 @@ export function Hub() {
     <div className="min-h-screen">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
         <Logo />
-        <div className="flex items-center gap-2"><DemoBadge className="hidden sm:inline-block" /><ThemeToggle /></div>
+        <div className="flex items-center gap-2"><DemoBadge className="hidden sm:inline-block" /><SoundToggle /><ThemeToggle /></div>
       </header>
-      <section className="mx-auto max-w-6xl px-5 pb-10 pt-6 md:pt-14">
+      <section className="relative mx-auto max-w-6xl px-5 pb-10 pt-6 md:pt-14">
+        <div className="pointer-events-none absolute right-5 top-6 hidden w-[360px] lg:block"><div className="absolute inset-10 rounded-full bg-primary/10 blur-3xl" /><PlayerIllustration className="relative w-full animate-bounce2 [animation-duration:4s]" /></div>
+        <LogoMark size={56} animated className="mb-6" />
         <Badge tone="primary">Prototype interactif · v0.1 · Dakar pilote</Badge>
         <h1 className="mt-4 max-w-3xl font-display text-4xl font-extrabold leading-[1.05] tracking-tight md:text-5xl">
           Find your game.<br />Book your sport.<br /><span className="text-primary-ink">Manage your events.</span>

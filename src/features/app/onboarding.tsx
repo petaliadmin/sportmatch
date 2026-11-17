@@ -4,7 +4,9 @@ import { ArrowRight, Check, Lock, Mail, Phone, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Logo } from "@/components/shells/brand";
+import { Logo, LogoMark } from "@/components/shells/brand";
+import { PlayerIllustration, StadiumIllustration, TeamIllustration } from "@/components/visual/illustrations";
+import { play } from "@/lib/sound";
 import { Button, Field, Input, Segmented, Select } from "@/components/ui";
 import { SportVisual } from "@/components/visual/sport-visual";
 import { useRouter } from "@/lib/router";
@@ -15,16 +17,17 @@ import { SPORTS } from "./shared";
 export function Splash() {
   const { navigate } = useRouter();
   useEffect(() => {
-    const t = setTimeout(() => navigate("app-onboarding"), 1600);
+    const t = setTimeout(() => navigate("app-onboarding"), 2400);
     return () => clearTimeout(t);
   }, [navigate]);
   return (
-    <button onClick={() => navigate("app-onboarding")} className="relative flex h-full min-h-[100dvh] w-full flex-col items-center justify-center bg-[#101A17] text-white lg:min-h-full">
+    <button onClick={() => navigate("app-onboarding")} className="relative flex min-h-[100dvh] w-full flex-col items-center justify-center overflow-hidden bg-[#101A17] text-white lg:min-h-[800px]">
       <div className="absolute inset-0 opacity-[.07]" style={{ backgroundImage: "repeating-linear-gradient(90deg,#B7F34A 0 2px,transparent 2px 56px)" }} />
-      <div className="animate-fade-up text-center">
-        <Logo className="scale-150" compact />
-        <p className="mt-8 font-display text-3xl font-extrabold tracking-tight">SPORT<span className="text-[#B7F34A]">MATCH</span></p>
-        <p className="mt-2 text-sm text-white/60">Find your game. Book your sport.</p>
+      <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#B7F34A]/15 blur-3xl" />
+      <div className="relative text-center">
+        <LogoMark size={96} animated className="mx-auto" />
+        <p className="mt-7 animate-[fade-up_.5s_1.1s_both] font-display text-3xl font-extrabold tracking-tight">SPORT<span className="text-[#B7F34A]">MATCH</span></p>
+        <p className="mt-2 animate-[fade-up_.5s_1.3s_both] text-sm text-white/60">Find your game. Book your sport.</p>
       </div>
       <div className="absolute bottom-14 h-1 w-24 overflow-hidden rounded-full bg-white/10"><div className="h-full w-1/2 animate-[shimmer_1.2s_infinite] bg-[#B7F34A]" /></div>
     </button>
@@ -32,9 +35,9 @@ export function Splash() {
 }
 
 const slides = [
-  { sport: "football" as const, title: "Trouve un match en 30 secondes", text: "Des matchs près de chez toi, à ton niveau, à l’heure qui t’arrange." },
-  { sport: "padel" as const, title: "Réserve ton terrain en 3 clics", text: "Créneaux en temps réel, paiement partagé entre joueurs." },
-  { sport: "basketball" as const, title: "Ne joue plus jamais à 8 contre 10", text: "Smart Fill complète ton équipe avec des joueurs fiables et compatibles." },
+  { sport: "football" as const, Art: PlayerIllustration, title: "Trouve un match en 30 secondes", text: "Des matchs près de chez toi, à ton niveau, à l’heure qui t’arrange.", stat: "1 240 matchs / semaine à Dakar" },
+  { sport: "padel" as const, Art: StadiumIllustration, title: "Réserve ton terrain en 3 clics", text: "Créneaux en temps réel, paiement partagé entre joueurs.", stat: "48 terrains partenaires" },
+  { sport: "basketball" as const, Art: TeamIllustration, title: "Ne joue plus jamais à 8 contre 10", text: "Smart Fill complète ton équipe avec des joueurs fiables et compatibles.", stat: "Équipe complète en 3 h en moyenne" },
 ];
 
 export function Onboarding() {
@@ -45,7 +48,9 @@ export function Onboarding() {
     <div className="flex min-h-full flex-col">
       <div className="relative">
         <SportVisual sport={s.sport} seed={i + 2} className="h-[380px]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-bg" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-bg" />
+        <s.Art key={i} className="absolute inset-x-6 bottom-6 mx-auto h-[250px] animate-pop drop-shadow-[0_20px_30px_rgba(0,0,0,.45)]" />
+        <span key={`b${i}`} className="absolute left-5 top-5 animate-pop rounded-full bg-black/50 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur [animation-delay:.25s]">⚡ {s.stat}</span>
         <button onClick={() => navigate("app-auth")} className="absolute right-4 top-4 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">Passer</button>
       </div>
       <div className="flex flex-1 flex-col px-6 pb-8">
@@ -53,7 +58,7 @@ export function Onboarding() {
         <h1 key={s.title} className="animate-fade-up font-display text-[28px] font-extrabold leading-tight tracking-tight">{s.title}</h1>
         <p className="mt-3 text-muted">{s.text}</p>
         <div className="mt-auto pt-8">
-          <Button block size="lg" onClick={() => (i < slides.length - 1 ? setI(i + 1) : navigate("app-auth"))}>
+          <Button block size="lg" onClick={() => { play(i < slides.length - 1 ? "kick" : "whistle"); i < slides.length - 1 ? setI(i + 1) : navigate("app-auth"); }}>
             {i < slides.length - 1 ? "Continuer" : "Commencer"} <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
@@ -148,7 +153,7 @@ export function SportsPick() {
 
 export function ProfileSetup() {
   const { navigate } = useRouter();
-  const { setOnboarded, toast } = useStore();
+  const { setOnboarded, toast, celebrate, awardXp } = useStore();
   const [level, setLevel] = useState("Confirmé");
   const [radius, setRadius] = useState(5);
   const [slots, setSlots] = useState<string[]>(["Soir"]);
@@ -180,7 +185,7 @@ export function ProfileSetup() {
         </Field>
       </div>
       <div className="mt-auto pt-8">
-        <Button block size="lg" onClick={() => { setOnboarded(true); toast({ title: "Profil prêt 🎉", body: "On te propose déjà 3 matchs ce soir." }); navigate("app-home"); }}>Terminer</Button>
+        <Button block size="lg" onClick={() => { setOnboarded(true); celebrate("success"); awardXp(100, "Profil complété"); toast({ title: "Profil prêt 🎉", body: "On te propose déjà 3 matchs ce soir." }); navigate("app-home"); }}>Terminer</Button>
       </div>
     </div>
   );

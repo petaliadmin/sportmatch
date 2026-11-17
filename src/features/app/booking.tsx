@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 import { MobileHeader } from "@/components/shells/mobile-shell";
 import { Avatar, Badge, Button, Card, DateStrip, Divider, Field, Input, Modal, MonthCalendar, Rating, Segmented, SlotGrid, Stepper, Verified, type Slot } from "@/components/ui";
 import { SportVisual } from "@/components/visual/sport-visual";
+import { Photo } from "@/components/visual/photo";
+import { CountUp } from "@/components/fx/fx";
+import { play } from "@/lib/sound";
+import { useEffect } from "react";
 import { playerById } from "@/data/players";
 import { venueById } from "@/data/venues";
 import { useRouter } from "@/lib/router";
@@ -62,7 +66,7 @@ export function VenueDetail() {
             <button aria-label="Ajouter aux favoris" aria-pressed={fav} onClick={() => setFav(!fav)} className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur"><Heart className={cn("h-4 w-4", fav && "fill-[#B7F34A] text-[#B7F34A]")} /></button>
           </div>
         } />
-        <SportVisual sport={v.sports[0]} seed={Number(v.id.slice(1))} className="h-60" label={`Photo de ${v.name}`} />
+        <Photo slot={`venue-${v.id}`} sport={v.sports[0]} seed={Number(v.id.slice(1))} className="h-60" alt={`Photo de ${v.name}`} kenBurns />
         <div className="absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 text-2xs text-white">1 / 8 photos</div>
       </div>
 
@@ -117,7 +121,7 @@ export function VenueDetail() {
           <div className="flex-1">
             {selected.length ? (
               <>
-                <p className="tabular font-display text-lg font-bold">{fcfa(total)}</p>
+                <p className="font-display text-lg font-bold"><CountUp value={total} duration={450} format={fcfa} /></p>
                 <p className="text-xs text-muted">{dayLabel(date)} · {selected[0]} – {String(parseInt(selected[selected.length - 1]) + 1).padStart(2, "0")}:00</p>
               </>
             ) : (
@@ -204,7 +208,7 @@ type Method = "wave" | "om" | "card";
 
 export function Payment() {
   const { params, navigate, back } = useRouter();
-  const { addBooking, pushNotification, toast } = useStore();
+  const { addBooking, pushNotification, toast, awardXp } = useStore();
   const v = venueById(params.id ?? "v1");
   const total = Number(params.total ?? 30000);
   const players = Number(params.players ?? 10);
@@ -220,10 +224,11 @@ export function Payment() {
     setProcessing(true);
     await new Promise((r) => setTimeout(r, 1400));
     setProcessing(false);
-    if (simulateFailure) { setFailed(true); return; }
+    if (simulateFailure) { setFailed(true); play("error"); return; }
     const rec = addBooking({ kind: "terrain", title: `${v.name} · ${params.court ?? "Terrain A"}`, subtitle: `${sportLabel(v.sports[0])} · ${(params.slots ?? "").split(",").length} h`, dateLabel: `${dayLabel(new Date(params.date ?? Date.now()))} · ${(params.slots ?? "19:00").split(",")[0]}`, amount: total, status: "Confirmée", payment: mode === "full" ? "Intégral" : mode === "deposit" ? "Acompte" : "Partagé", paidRatio: due / total, sport: v.sports[0] });
     pushNotification({ kind: "booking", title: "Réservation confirmée", body: `${v.name} · ${rec.dateLabel}` });
     toast({ title: "Paiement simulé accepté", body: "Aucun débit réel n’a été effectué." });
+    awardXp(80, "Terrain réservé", "booker");
     navigate("app-confirmation", { ...params, bookingId: rec.id, mode, due: String(due) });
   };
 
@@ -302,7 +307,8 @@ export function Payment() {
 
 export function Confirmation() {
   const { params, navigate } = useRouter();
-  const { toast } = useStore();
+  const { toast, celebrate } = useStore();
+  useEffect(() => { const t = setTimeout(() => celebrate("success"), 250); return () => clearTimeout(t); }, [celebrate]);
   const v = venueById(params.id ?? "v1");
   // Fallbacks keep the screen meaningful when opened directly from the guided tour.
   const total = Number(params.total ?? Math.round(v.pricePerHour * 1.03));
@@ -311,8 +317,10 @@ export function Confirmation() {
   const message = `⚽ Match réservé !\n📍 ${v.name} (${v.district})\n🕖 ${dayLabel(new Date(params.date ?? Date.now()))} · ${(params.slots ?? "19:00").split(",")[0]}\n💰 ${fcfa(Math.ceil(total / Number(params.players ?? 10)))} par joueur\nPaie ta part sur SPORTMATCH (lien démo)`;
   return (
     <div className="flex min-h-full flex-col px-5 pb-8 pt-10">
-      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/15 animate-fade-up">
-        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-fg"><CheckCircle2 className="h-8 w-8" /></span>
+      <div className="relative mx-auto flex h-24 w-24 items-center justify-center">
+        <span className="absolute inset-0 animate-ripple rounded-full bg-primary/25" />
+        <span className="absolute inset-2 animate-pop rounded-full bg-primary/20" />
+        <span className="relative flex h-16 w-16 animate-pop items-center justify-center rounded-full bg-primary text-primary-fg shadow-[0_0_40px_rgb(var(--primary)/.6)] [animation-delay:.15s]"><CheckCircle2 className="h-9 w-9" /></span>
       </div>
       <h1 className="mt-6 text-center font-display text-2xl font-extrabold">Réservation confirmée</h1>
       <p className="mt-1 text-center text-sm text-muted">Simulation · aucune réservation réelle</p>

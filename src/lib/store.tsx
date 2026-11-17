@@ -4,7 +4,28 @@ import { initialMatches } from "@/data/matches";
 import { initialBookings, initialNotifications } from "@/data/misc";
 import { ME } from "@/data/players";
 import type { AppNotification, BookingRecord, Match, Provider } from "@/data/types";
+import { initSoundPreference, play, setSoundEnabled, haptic } from "./sound";
 import { uid } from "./utils";
+
+/* ---------- Gamification ---------- */
+export const XP_PER_LEVEL = 500;
+export const LEVEL_TITLES = ["Rookie", "Remplaçant", "Titulaire", "Pilier", "Capitaine", "Meneur", "Star du quartier", "Légende de Dakar"];
+export const levelOf = (xp: number) => Math.floor(xp / XP_PER_LEVEL) + 1;
+export const levelTitle = (lvl: number) => LEVEL_TITLES[Math.min(LEVEL_TITLES.length - 1, lvl - 1)];
+
+export interface Badge { id: string; label: string; desc: string; emoji: string; unlocked: boolean }
+const initialBadges: Badge[] = [
+  { id: "first-match", label: "Premier match", desc: "Rejoindre ton premier match", emoji: "⚽", unlocked: true },
+  { id: "reliable", label: "Ultra fiable", desc: "Fiabilité ≥ 90", emoji: "🛡️", unlocked: true },
+  { id: "organizer", label: "Organisateur", desc: "Publier un match", emoji: "📣", unlocked: false },
+  { id: "booker", label: "Réservé !", desc: "Réserver un terrain", emoji: "🏟️", unlocked: false },
+  { id: "full-house", label: "Full house", desc: "Remplir un match avec Smart Fill", emoji: "🔥", unlocked: false },
+  { id: "streak-5", label: "5 semaines", desc: "Jouer 5 semaines d'affilée", emoji: "📅", unlocked: false },
+  { id: "night-owl", label: "Oiseau de nuit", desc: "Jouer après 21 h", emoji: "🌙", unlocked: true },
+  { id: "social", label: "Capitaine social", desc: "Inviter 10 joueurs", emoji: "🤝", unlocked: false },
+];
+
+export interface XpBurst { id: string; amount: number; reason: string }
 
 export type Theme = "dark" | "light";
 export type Lang = "fr" | "en";
@@ -56,6 +77,21 @@ interface StoreValue {
   toasts: Toast[];
   toast: (t: Omit<Toast, "id">) => void;
   dismissToast: (id: string) => void;
+  xp: number;
+  streakWeeks: number;
+  badges: Badge[];
+  xpBursts: XpBurst[];
+  levelUp: number | null;
+  dismissLevelUp: () => void;
+  newBadge: Badge | null;
+  dismissBadge: () => void;
+  confettiKey: number;
+  /** Award XP; optionally unlock a badge. Plays sound + floating "+XP". */
+  awardXp: (amount: number, reason: string, badgeId?: string) => void;
+  /** Confetti + cheer/success sound + haptic. */
+  celebrate: (sound?: "success" | "cheer" | "whistle") => void;
+  soundOn: boolean;
+  setSoundOn: (v: boolean) => void;
   onboarded: boolean;
   setOnboarded: (v: boolean) => void;
   favoriteSports: string[];
@@ -87,6 +123,43 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [event, setEventState] = useState(defaultEvent);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [onboarded, setOnboarded] = useState(false);
+  const [xp, setXp] = useState(2340);
+  const [streakWeeks, setStreakWeeks] = useState(4);
+  const [badges, setBadges] = useState(initialBadges);
+  const [xpBursts, setXpBursts] = useState<XpBurst[]>([]);
+  const [levelUp, setLevelUp] = useState<number | null>(null);
+  const [newBadge, setNewBadge] = useState<Badge | null>(null);
+  const [confettiKey, setConfettiKey] = useState(0);
+  const [soundOn, setSoundOnState] = useState(true);
+
+  useEffect(() => { setSoundOnState(initSoundPreference()); }, []);
+  const setSoundOn = (v: boolean) => { setSoundEnabled(v); setSoundOnState(v); if (v) play("select"); };
+
+  const celebrate = useCallback((sound: "success" | "cheer" | "whistle" = "success") => {
+    setConfettiKey((k) => k + 1);
+    play(sound);
+    haptic([18, 40, 18]);
+  }, []);
+
+  const awardXp = useCallback((amount: number, reason: string, badgeId?: string) => {
+    const id = uid();
+    setXpBursts((b) => [...b, { id, amount, reason }]);
+    setTimeout(() => setXpBursts((b) => b.filter((x) => x.id !== id)), 1500);
+    setTimeout(() => play("xp"), 120);
+    setXp((cur) => {
+      const next = cur + amount;
+      if (levelOf(next) > levelOf(cur)) setTimeout(() => { setLevelUp(levelOf(next)); setConfettiKey((k) => k + 1); play("levelup"); }, 700);
+      return next;
+    });
+    if (badgeId) {
+      setBadges((all) => {
+        const b = all.find((x) => x.id === badgeId);
+        if (!b || b.unlocked) return all;
+        setTimeout(() => { setNewBadge({ ...b, unlocked: true }); play("notify"); }, 1100);
+        return all.map((x) => (x.id === badgeId ? { ...x, unlocked: true } : x));
+      });
+    }
+  }, []);
   const [favoriteSports, setFavoriteSports] = useState<string[]>(["football", "basketball"]);
 
   useEffect(() => {
@@ -106,12 +179,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const dismissToast = useCallback((id: string) => setToasts((t) => t.filter((x) => x.id !== id)), []);
   const toast = useCallback((t: Omit<Toast, "id">) => {
     const id = uid();
+    if (t.tone === "error") play("error");
     setToasts((all) => [...all.slice(-2), { ...t, id }]);
     setTimeout(() => dismissToast(id), 3800);
   }, [dismissToast]);
 
   const pushNotification = useCallback((n: Omit<AppNotification, "id" | "read" | "time">) => {
     setNotifications((all) => [{ ...n, id: uid(), read: false, time: "à l'instant" }, ...all]);
+    setTimeout(() => play("notify"), 300);
   }, []);
 
   const value = useMemo<StoreValue>(() => ({
@@ -135,8 +210,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     event, setEvent: (patch) => setEventState((e) => ({ ...e, ...patch })),
     toasts, toast, dismissToast,
     onboarded, setOnboarded, favoriteSports, setFavoriteSports,
+    xp, streakWeeks, badges, xpBursts, levelUp, dismissLevelUp: () => setLevelUp(null), newBadge, dismissBadge: () => setNewBadge(null),
+    confettiKey, awardXp, celebrate, soundOn, setSoundOn,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [theme, lang, matches, bookings, notifications, cart, event, toasts, onboarded, favoriteSports, toast, dismissToast, pushNotification]);
+  }), [theme, lang, matches, bookings, notifications, cart, event, toasts, onboarded, favoriteSports, toast, dismissToast, pushNotification, xp, streakWeeks, badges, xpBursts, levelUp, newBadge, confettiKey, soundOn, awardXp, celebrate]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

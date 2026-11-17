@@ -1,7 +1,9 @@
 "use client";
 import { ArrowLeft, Bell, Check, Plus, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Logo } from "@/components/shells/brand";
+import { Logo, LogoMark } from "@/components/shells/brand";
+import { CalendarIllustration, EmptyNetIllustration, PlayerIllustration, StadiumIllustration, TeamIllustration, TrophyIllustration, WhistleIllustration } from "@/components/visual/illustrations";
+import { play, type SoundName } from "@/lib/sound";
 import { ThemeToggle } from "@/components/shells/console-shell";
 import { Avatar, AvatarStack, Badge, Button, Card, CardSkeleton, Checkbox, Chip, DataTable, DateStrip, Drawer, EmptyState, ErrorState, Field, Input, Menu, Modal, MonthCalendar, Progress, Rating, ScoreRing, Segmented, Select, SlotGrid, Stat, Stepper, Switch, Tabs, Textarea, Verified } from "@/components/ui";
 import { useRouter } from "@/lib/router";
@@ -20,7 +22,8 @@ function Section({ id, title, children }: { id: string; title: string; children:
 
 export function DesignSystem() {
   const { navigate } = useRouter();
-  const { toast } = useStore();
+  const { toast, celebrate, awardXp } = useStore();
+  const [replay, setReplay] = useState(0);
   const [modal, setModal] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [tab, setTab] = useState<"a" | "b" | "c">("a");
@@ -44,6 +47,37 @@ export function DesignSystem() {
         <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight">SportTech Premium</h1>
         <p className="mt-2 max-w-2xl text-muted">Sombre par défaut, lime électrique pour l’action. Tous les tokens sont des variables CSS : le thème clair est un simple changement de classe. Bascule le thème en haut à droite pour vérifier chaque composant.</p>
       </div>
+
+      <Section id="logo" title="Logo">
+        <div className="grid gap-4 md:grid-cols-[1fr_1fr_1fr]">
+          <Card className="flex flex-col items-center justify-center gap-3 bg-[#101A17] p-8"><LogoMark key={replay} size={120} animated /><Button size="sm" variant="secondary" onClick={() => setReplay((r) => r + 1)}>Rejouer l’animation</Button></Card>
+          <Card className="flex flex-col items-start justify-center gap-6 p-8"><Logo size={44} className="[&>span]:text-3xl" /><Logo size={28} /><div className="flex items-end gap-4"><LogoMark size={64} /><LogoMark size={40} /><LogoMark size={24} /><LogoMark size={16} /></div></Card>
+          <Card className="space-y-2 p-6 text-sm"><p className="font-semibold">Concept</p><p className="text-muted">Un « S » tracé comme une course, le ballon en avant. L’inclinaison donne l’élan, les deux traînées la vitesse. Lisible de 16 px (favicon) à l’affiche.</p><p className="font-semibold">Règles</p><p className="text-muted">Toujours sur lime ou en monochrome · zone de protection = rayon du ballon · ne pas déformer, ne pas recolorer le S.</p></Card>
+        </div>
+      </Section>
+
+      <Section id="illustrations" title="Illustrations">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {[["Joueur", PlayerIllustration], ["Stade", StadiumIllustration], ["Équipe", TeamIllustration], ["Trophée", TrophyIllustration], ["Sifflet", WhistleIllustration], ["Calendrier", CalendarIllustration], ["But vide (état vide)", EmptyNetIllustration]].map(([n, I]) => {
+            const Ill = I as (p: { className?: string }) => React.ReactElement;
+            return <Card key={n as string} className="flex flex-col items-center gap-2 p-4"><Ill className="h-32 w-full" /><span className="text-xs text-muted">{n as string}</span></Card>;
+          })}
+        </div>
+      </Section>
+
+      <Section id="sound" title="Sons, effets & récompenses">
+        <p className="mb-4 max-w-2xl text-sm text-muted">Sons synthétisés (Web Audio, aucun fichier), courts et discrets, uniquement sur des actions significatives. Coupables en un clic, coupés par défaut si l’utilisateur préfère réduire les animations.</p>
+        <div className="flex flex-wrap gap-2">
+          {([["tap", "Tap"], ["select", "Sélection"], ["kick", "Frappe"], ["whistle", "Sifflet (match rejoint)"], ["success", "Succès (réservation)"], ["notify", "Notification"], ["xp", "Gain d’XP"], ["levelup", "Niveau supérieur"], ["cheer", "Foule (équipe complète)"], ["error", "Erreur"]] as [SoundName, string][]).map(([k, l]) => (
+            <Button key={k} variant="secondary" size="sm" onClick={() => play(k)}>▶ {l}</Button>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button onClick={() => celebrate("cheer")}>🎉 Confettis + foule</Button>
+          <Button variant="outline" onClick={() => awardXp(60, "Démo")}>+60 XP</Button>
+          <Button variant="outline" onClick={() => awardXp(520, "Démo niveau")}>Simuler un niveau supérieur</Button>
+        </div>
+      </Section>
 
       <Section id="colors" title="Couleurs">
         <div className="grid grid-cols-3 gap-3 md:grid-cols-5 lg:grid-cols-9">

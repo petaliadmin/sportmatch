@@ -1,4 +1,5 @@
 "use client";
+import { FxLayer } from "@/components/fx/fx-layer";
 import { Toaster } from "@/components/shells/toaster";
 import { RouterProvider, useRouter } from "@/lib/router";
 import { StoreProvider } from "@/lib/store";
@@ -25,6 +26,7 @@ export function Prototype() {
       <RouterProvider>
         <Screen />
         <Toaster />
+        <FxLayer />
       </RouterProvider>
     </StoreProvider>
   );

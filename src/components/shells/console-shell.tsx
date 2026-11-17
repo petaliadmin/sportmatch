@@ -1,5 +1,5 @@
 "use client";
-import { Bell, ChevronsUpDown, Menu as MenuIcon, Moon, Search, Sun, X } from "lucide-react";
+import { Bell, ChevronsUpDown, Menu as MenuIcon, Moon, Search, Sun, Volume2, VolumeX, X } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "@/lib/router";
 import { useStore } from "@/lib/store";
@@ -16,6 +16,15 @@ export const SPACES = [
   { route: "admin-dashboard", label: "SportMatch Admin", sub: "Back-office" },
   { route: "design-system", label: "Design System", sub: "Tokens & composants" },
 ];
+
+export function SoundToggle() {
+  const { soundOn, setSoundOn } = useStore();
+  return (
+    <button aria-label={soundOn ? "Couper le son" : "Activer le son"} aria-pressed={soundOn} onClick={() => setSoundOn(!soundOn)} className="flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-fg">
+      {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+    </button>
+  );
+}
 
 export function ThemeToggle() {
   const { theme, setTheme } = useStore();
@@ -128,6 +137,7 @@ export function ConsoleShell({ space, nav, user, children, footerNav }: { space:
           </div>
           <div className="flex-1 md:hidden" />
           <DemoBadge className="hidden sm:inline-block" />
+          <SoundToggle />
           <ThemeToggle />
           <button aria-label="Notifications" onClick={() => navigate("app-notifications")} className="relative flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-fg">
             <Bell className="h-4 w-4" />

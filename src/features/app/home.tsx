@@ -1,5 +1,9 @@
 "use client";
-import { Bell, CalendarPlus, ChevronRight, Compass, MapPin, MessageCircle, Search, Sparkles, Swords, Users } from "lucide-react";
+import { Bell, CalendarPlus, ChevronRight, Compass, Flame, MapPin, MessageCircle, Search, Sparkles, Swords, Target, Users, Zap } from "lucide-react";
+import { CountUp, LiveDot, Marquee, Reveal } from "@/components/fx/fx";
+import { levelOf, levelTitle, XP_PER_LEVEL } from "@/lib/store";
+import { play } from "@/lib/sound";
+import { useState } from "react";
 import { Logo } from "@/components/shells/brand";
 import { Avatar, Badge, Card, ScoreRing, SectionHeader } from "@/components/ui";
 import { DakarMap } from "@/components/visual/dakar-map";
@@ -12,7 +16,10 @@ import { MatchCard, sportLabel } from "./shared";
 
 export function Home() {
   const { navigate } = useRouter();
-  const { matches, notifications, favoriteSports } = useStore();
+  const { matches, notifications, favoriteSports, xp, streakWeeks, awardXp, celebrate } = useStore();
+  const [claimed, setClaimed] = useState(false);
+  const lvl = levelOf(xp);
+  const inLvl = xp % XP_PER_LEVEL;
   const me = playerById(ME);
   const unread = notifications.filter((n) => !n.read).length;
   const mine = matches.filter((m) => m.participants.includes(ME)).sort((a, b) => a.dayOffset - b.dayOffset);
@@ -46,6 +53,32 @@ export function Home() {
         </button>
       </section>
 
+      <section className="mt-5 px-5">
+        <button onClick={() => navigate("app-profile")} className="relative w-full overflow-hidden rounded-xl border border-border bg-gradient-to-br from-surface-2 to-surface p-4 text-left">
+          <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-primary/10 blur-2xl" />
+          <div className="relative flex items-center gap-3">
+            <span className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-primary font-display text-xl font-extrabold text-primary-fg shadow-[0_0_24px_rgb(var(--primary)/.35)]">{lvl}</span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2 text-xs"><span className="truncate font-semibold">{levelTitle(lvl)}</span><span className="tabular shrink-0 whitespace-nowrap text-muted"><CountUp value={inLvl} />/{XP_PER_LEVEL} XP</span></div>
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-bg"><div className="h-full rounded-full bg-gradient-to-r from-primary/70 to-primary transition-[width] duration-700" style={{ width: `${(inLvl / XP_PER_LEVEL) * 100}%` }} /></div>
+            </div>
+            <span className="flex flex-col items-center rounded-lg bg-warning/10 px-2.5 py-1.5 text-warning">
+              <Flame className="h-5 w-5 animate-flicker fill-warning/40" />
+              <span className="tabular text-xs font-extrabold">{streakWeeks} sem.</span>
+            </span>
+          </div>
+        </button>
+      </section>
+
+      <section className="mt-4 px-5">
+        <div className="flex items-center gap-2 text-xs text-muted"><LiveDot /><span><b className="text-fg"><CountUp value={312} /></b> joueurs jouent en ce moment à Dakar</span></div>
+        <Marquee className="mt-2">
+          {["⚽ Awa a rejoint Five du mardi soir", "🏆 Ouakam United gagne 5-3", "🔥 Ibrahima : 10 matchs d’affilée", "🏀 Run basket Ouakam : plus que 4 places", "🎾 Nouveau créneau à la Corniche 18h", "⚡ Lamine passe niveau 7"].map((t) => (
+            <span key={t} className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-xs">{t}</span>
+          ))}
+        </Marquee>
+      </section>
+
       {next && (
         <section className="mt-5 px-5">
           <Card interactive onClick={() => navigate("app-match", { id: next.id })} className="overflow-hidden border-primary/40 bg-gradient-to-br from-primary/15 to-transparent p-4">
@@ -66,7 +99,7 @@ export function Home() {
       <section className="mt-5 grid grid-cols-4 gap-2 px-5">
         {actions.map((a) => (
           <button key={a.label} onClick={() => navigate(a.route)} className="group flex flex-col items-center gap-1.5 rounded-lg p-1 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-surface transition group-hover:border-primary group-hover:bg-primary group-hover:text-primary-fg"><a.icon className="h-5 w-5" /></span>
+            <span onMouseDown={() => play("tap")} className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-surface transition duration-200 group-hover:-translate-y-0.5 group-hover:border-primary group-hover:bg-primary group-hover:text-primary-fg group-active:scale-90"><a.icon className="h-5 w-5" /></span>
             <span className="text-[11px] font-semibold leading-tight">{a.label}</span>
           </button>
         ))}
@@ -82,11 +115,29 @@ export function Home() {
       <section className="mt-7 px-5">
         <SectionHeader title="Terrains à proximité" action={<button onClick={() => navigate("app-explore")} className="text-sm font-semibold text-primary-ink">Carte</button>} />
         <button onClick={() => navigate("app-explore")} className="block w-full overflow-hidden rounded-lg border border-border">
-          <DakarMap className="h-40" points={venues.slice(0, 6).map((v) => ({ id: v.id, x: v.map.x, y: v.map.y, label: v.name, price: `${v.pricePerHour / 1000}k` }))} />
+          <DakarMap className="h-40 transition duration-500 hover:scale-[1.02]" points={venues.slice(0, 6).map((v) => ({ id: v.id, x: v.map.x, y: v.map.y, label: v.name, price: `${v.pricePerHour / 1000}k` }))} />
         </button>
       </section>
 
-      <section className="mt-7 px-5">
+      <Reveal className="mt-7 px-5">
+        <Card className="relative overflow-hidden border-warning/30 p-4">
+          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-warning/10 blur-2xl" />
+          <div className="relative flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-warning/15 text-warning"><Target className="h-5 w-5" /></span>
+            <div className="flex-1">
+              <p className="text-2xs font-bold uppercase tracking-widest text-warning">Défi de la semaine</p>
+              <p className="font-semibold">Joue 3 matchs avant dimanche</p>
+              <div className="mt-2 flex gap-1.5">{[0, 1, 2].map((i) => <span key={i} className={i < 2 || claimed ? "h-2 flex-1 rounded-full bg-warning" : "h-2 flex-1 rounded-full bg-surface-2"} />)}</div>
+            </div>
+            {claimed ? <span className="text-xs font-bold text-success">Récupéré ✓</span> : (
+              <button onClick={() => { setClaimed(true); celebrate("success"); awardXp(200, "Défi réussi", "streak-5"); }} className="flex items-center gap-1 rounded-full bg-warning px-3 py-1.5 text-xs font-extrabold text-[#101A17] transition hover:brightness-110 active:scale-95"><Zap className="h-3.5 w-3.5 fill-current" />+200</button>
+            )}
+          </div>
+          {!claimed && <p className="relative mt-2 text-2xs text-muted">2/3 matchs joués · démo : touche +200 pour simuler le 3ᵉ match</p>}
+        </Card>
+      </Reveal>
+
+      <section className="mt-4 px-5">
         <Card className="flex items-center gap-4 p-4">
           <ScoreRing value={me.reliability} size={56} label="Fiabilité" />
           <div className="flex-1">
