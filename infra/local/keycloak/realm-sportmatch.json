@@ -40,6 +40,21 @@
         "post.logout.redirect.uris": "http://localhost:3080/*##http://localhost:3000/*",
         "pkce.code.challenge.method": "S256"
       }
+    },
+    {
+      "clientId": "sportmatch-mobile",
+      "name": "SportMatch Mobile (Flutter)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "com.sportmatch.app:/oauthredirect"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "com.sportmatch.app:/oauthredirect"
+      }
     }
   ],
   "users": [

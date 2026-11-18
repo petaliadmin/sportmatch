@@ -100,7 +100,7 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_HEALTH_ENABLED: "true"
       # Incrémenter pour forcer la recréation du conteneur et la réimport du realm (base H2 éphémère).
-      SPORTMATCH_REALM_VERSION: "3"
+      SPORTMATCH_REALM_VERSION: "4"
     ports: ["8180:8080"]
     volumes:
       - ./keycloak/realm-sportmatch.json:/opt/keycloak/data/import/realm-sportmatch.json:ro
