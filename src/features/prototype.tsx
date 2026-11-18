@@ -1,6 +1,7 @@
 "use client";
 import { FxLayer } from "@/components/fx/fx-layer";
 import { Toaster } from "@/components/shells/toaster";
+import { SessionProvider } from "@/lib/api/auth";
 import { RouterProvider, useRouter } from "@/lib/router";
 import { StoreProvider } from "@/lib/store";
 import { AdminSpace, adminRoutes } from "./admin";
@@ -25,11 +26,14 @@ function Screen() {
 export function Prototype() {
   return (
     <StoreProvider>
-      <RouterProvider>
-        <Screen />
-        <Toaster />
-        <FxLayer />
-      </RouterProvider>
+      {/* Session Keycloak montée à la racine : le retour de connexion (?code=…) est traité quelle que soit la page. */}
+      <SessionProvider>
+        <RouterProvider>
+          <Screen />
+          <Toaster />
+          <FxLayer />
+        </RouterProvider>
+      </SessionProvider>
     </StoreProvider>
   );
 }

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Logo } from "@/components/shells/brand";
 import { SoundToggle, ThemeToggle } from "@/components/shells/console-shell";
 import { Avatar, Badge, Button, Card, Tabs } from "@/components/ui";
-import { SessionProvider, useSession } from "@/lib/api/auth";
+import { useSession } from "@/lib/api/auth";
 import { API_URL, apiEnabled } from "@/lib/api/config";
 import { useRouter } from "@/lib/router";
 import { BookingsPanel } from "./bookings";
@@ -19,11 +19,7 @@ const PRIVATE: Tab[] = ["bookings", "chat", "notifications"];
 
 /** Espace « Bêta live » : l'interface SportMatch branchée sur les microservices réels (via la gateway). */
 export function LiveSpace() {
-  return (
-    <SessionProvider>
-      <Live />
-    </SessionProvider>
-  );
+  return <Live />;
 }
 
 function Live() {
