@@ -9,6 +9,8 @@ commonEnv:
   DB_HOST: "<rds_endpoint>"
   DB_PORT: "5432"
   KAFKA_BOOTSTRAP: "sportmatch-kafka-kafka-bootstrap.kafka:9092"   # Strimzi ; MSK : <msk_bootstrap_brokers>
+  # Topics répliqués 3 fois (min.insync.replicas = 2 côté Kafka) : tolère la perte d'un broker.
+  SPORTMATCH_KAFKA_REPLICAS: "3"
 
 resources:
   requests: { cpu: 200m, memory: 512Mi }
