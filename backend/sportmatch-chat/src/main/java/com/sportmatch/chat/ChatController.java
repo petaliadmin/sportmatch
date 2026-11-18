@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -49,9 +51,12 @@ public class ChatController {
     }
 
     @PostMapping("/conversations/{id}/messages")
-    public ResponseEntity<ChatMessage> post(@RequestHeader("X-User-Id") String userId, @PathVariable("id") UUID id,
+    public ResponseEntity<ChatMessage> post(@RequestHeader("X-User-Id") String userId,
+                                            @RequestHeader(name = "X-User-Name", required = false) String encodedName,
+                                            @PathVariable("id") UUID id,
                                             @Valid @RequestBody PostMessageRequest request) {
-        ChatMessage message = store.post(id, userId, request.body());
+        String name = encodedName == null ? null : URLDecoder.decode(encodedName, StandardCharsets.UTF_8);
+        ChatMessage message = store.post(id, userId, name, request.body());
         broadcaster.publish(message);
         return ResponseEntity.status(HttpStatus.CREATED).body(message);
     }

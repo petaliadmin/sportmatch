@@ -9,6 +9,7 @@ import { BusinessSpace, businessRoutes } from "./business";
 import { DesignSystem } from "./design-system/design-system";
 import { EventsSpace, eventsRoutes } from "./events";
 import { Hub } from "./hub/hub";
+import { LiveSpace } from "./live";
 
 function Screen() {
   const { route } = useRouter();
@@ -17,6 +18,7 @@ function Screen() {
   if (route in businessRoutes) return <BusinessSpace route={route} />;
   if (route in adminRoutes) return <AdminSpace route={route} />;
   if (route === "design-system") return <DesignSystem />;
+  if (route === "live") return <LiveSpace />;
   return <Hub />;
 }
 

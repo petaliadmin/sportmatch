@@ -70,19 +70,19 @@ public class ConversationStore {
         requireMember(conversationId, userId);
         return jdbc.sql("""
                         select * from (
-                          select id, conversation_id, sender_id, body, sent_at from message
+                          select id, conversation_id, sender_id, sender_name, body, sent_at from message
                           where conversation_id = :c order by sent_at desc limit 100
                         ) recent order by sent_at
                         """)
                 .param("c", conversationId).query(ChatMessage.class).list();
     }
 
-    public ChatMessage post(UUID conversationId, String userId, String body) {
+    public ChatMessage post(UUID conversationId, String userId, String userName, String body) {
         requireMember(conversationId, userId);
         UUID id = UUID.randomUUID();
-        jdbc.sql("insert into message (id, conversation_id, sender_id, body) values (:id, :c, :u, :b)")
-                .param("id", id).param("c", conversationId).param("u", userId).param("b", body.strip()).update();
-        return jdbc.sql("select id, conversation_id, sender_id, body, sent_at from message where id = :id")
+        jdbc.sql("insert into message (id, conversation_id, sender_id, sender_name, body) values (:id, :c, :u, :n, :b)")
+                .param("id", id).param("c", conversationId).param("u", userId).param("n", userName).param("b", body.strip()).update();
+        return jdbc.sql("select id, conversation_id, sender_id, sender_name, body, sent_at from message where id = :id")
                 .param("id", id).query(ChatMessage.class).single();
     }
 

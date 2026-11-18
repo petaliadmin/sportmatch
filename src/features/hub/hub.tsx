@@ -1,5 +1,5 @@
 "use client";
-import { ArrowUpRight, Briefcase, Building2, CalendarRange, Palette, ShieldCheck, Smartphone } from "lucide-react";
+import { ArrowUpRight, Briefcase, Radio, Building2, CalendarRange, Palette, ShieldCheck, Smartphone } from "lucide-react";
 import { DemoBadge, Logo, LogoMark } from "@/components/shells/brand";
 import { PlayerIllustration } from "@/components/visual/illustrations";
 import { SoundToggle, ThemeToggle } from "@/components/shells/console-shell";
@@ -46,6 +46,18 @@ export function Hub() {
             </button>
           ))}
         </div>
+      </section>
+      <section className="mx-auto max-w-6xl px-5 pb-6">
+        <Card interactive onClick={() => navigate("live")} className="flex flex-wrap items-center justify-between gap-4 border-primary/40 bg-primary/5 p-5">
+          <div className="flex items-center gap-4">
+            <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary text-primary-fg"><Radio className="h-5 w-5" /></span>
+            <div>
+              <p className="font-display text-lg font-bold">Bêta live · API réelle</p>
+              <p className="text-sm text-muted">Connexion Keycloak, terrains à proximité, matchs, réservations de démo, tournois, chat temps réel.</p>
+            </div>
+          </div>
+          <Badge tone="success" dot>Microservices Spring Boot</Badge>
+        </Card>
       </section>
       <section className="mx-auto grid max-w-6xl gap-4 px-5 pb-10 md:grid-cols-2">
         {spaces.map((s) => (
