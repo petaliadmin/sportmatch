@@ -15,5 +15,11 @@ public record CreateMatchRequest(
         @NotNull @Future OffsetDateTime startsAt,
         @Min(30) @Max(240) int durationMinutes,
         @Min(2) @Max(30) int maxPlayers,
-        @NotBlank String level) {
+        @NotBlank String level,
+        /** Match récurrent : nombre de semaines supplémentaires (0 à 8), même jour, même heure. */
+        @Min(0) @Max(8) Integer repeatWeeks) {
+
+    public int occurrences() {
+        return 1 + (repeatWeeks == null ? 0 : repeatWeeks);
+    }
 }

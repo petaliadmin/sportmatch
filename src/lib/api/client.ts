@@ -8,8 +8,15 @@ export interface ApiVenue {
 }
 export interface ApiMatch {
   id: string; venueId: string; venueName: string; sport: string; startsAt: string; durationMinutes: number;
-  maxPlayers: number; level: string; organizerId: string; status: "OPEN" | "FULL" | "CANCELLED"; participants: number;
+  maxPlayers: number; level: string; organizerId: string; organizerName: string | null;
+  status: "OPEN" | "FULL" | "CANCELLED"; participants: number; seriesId: string | null;
 }
+export interface ApiParticipant { playerId: string; displayName: string; joinedAt: string; attended: boolean | null }
+export interface PlayerStats { matchesJoined: number; matchesOrganized: number; attendanceRated: number; noShows: number; reliabilityPercent: number | null }
+export interface PlayerProfile {
+  userId: string; displayName: string; favoriteSport: string | null; level: string | null; district: string | null; bio: string | null; stats: PlayerStats;
+}
+export interface MatchFilter { status?: "OPEN" | "FULL"; sport?: string; level?: string; from?: string; to?: string }
 export interface ApiCourt {
   id: string; venueId: string; venueName: string; name: string; sport: string;
   pricePerHourFcfa: number; openHour: number; closeHour: number;
@@ -92,9 +99,26 @@ export function api(token: TokenFn) {
     venues: (sport?: string) => get<ApiVenue[]>(`/api/v1/venues${sport ? `?sport=${sport}` : ""}`),
     nearby: (lat: number, lng: number, radiusKm: number, sport?: string) =>
       get<ApiVenue[]>(`/api/v1/venues/nearby?lat=${lat}&lng=${lng}&radiusKm=${radiusKm}${sport ? `&sport=${sport}` : ""}`),
-    matches: (status = "OPEN") => get<ApiMatch[]>(`/api/v1/matches?status=${status}`),
-    createMatch: (b: { venueId: string; sport: string; startsAt: string; durationMinutes: number; maxPlayers: number; level: string }) =>
+    matches: (f: MatchFilter = {}) => {
+      const q = new URLSearchParams({ status: f.status ?? "OPEN" });
+      (["sport", "level", "from", "to"] as const).forEach((k) => { if (f[k]) q.set(k, f[k]!); });
+      return get<ApiMatch[]>(`/api/v1/matches?${q}`);
+    },
+    match: (id: string) => get<ApiMatch>(`/api/v1/matches/${id}`),
+    myMatches: () => get<ApiMatch[]>("/api/v1/matches/mine"),
+    participants: (id: string) => get<ApiParticipant[]>(`/api/v1/matches/${id}/participants`),
+    createMatch: (b: { venueId: string; sport: string; startsAt: string; durationMinutes: number; maxPlayers: number; level: string; repeatWeeks?: number }) =>
       post<ApiMatch>("/api/v1/matches", b),
+    leaveMatch: (id: string) => post<ApiMatch>(`/api/v1/matches/${id}/leave`),
+    markAttendance: (id: string, playerId: string, present: boolean) =>
+      post<ApiParticipant[]>(`/api/v1/matches/${id}/attendance`, { playerId, present }),
+    myProfile: () => get<PlayerProfile>("/api/v1/me/profile"),
+    updateProfile: (b: { displayName: string; favoriteSport?: string; level?: string; district?: string; bio?: string }) =>
+      call<PlayerProfile>(token, "PUT", "/api/v1/me/profile", b),
+    player: (id: string) => get<PlayerProfile>(`/api/v1/players/${encodeURIComponent(id)}`),
+    unreadCount: () => get<{ unread: number }>("/api/v1/notifications/unread-count"),
+    markRead: (id: string) => post<{ unread: number }>(`/api/v1/notifications/${id}/read`),
+    markAllRead: () => post<{ unread: number }>("/api/v1/notifications/read-all"),
     joinMatch: (id: string) => post<ApiMatch>(`/api/v1/matches/${id}/join`),
     cancelMatch: (id: string) => post<ApiMatch>(`/api/v1/matches/${id}/cancel`),
     proCourts: () => get<ProCourt[]>("/api/v1/business/pro/courts"),

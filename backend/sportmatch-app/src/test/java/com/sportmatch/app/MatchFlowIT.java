@@ -102,6 +102,76 @@ class MatchFlowIT {
                 .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void serieQuitterMesMatchsPresenceEtProfil() {
+        UUID venueId = jdbc.sql("select id from venue order by name limit 1").query(UUID.class).single();
+        Map<String, Object> body = new java.util.HashMap<>(Map.of(
+                "venueId", venueId, "sport", "BASKETBALL", "startsAt", "2031-03-04T19:00:00Z",
+                "durationMinutes", 60, "maxPlayers", 2, "level", "BEGINNER", "repeatWeeks", 3));
+
+        // Série hebdomadaire : 4 occurrences, même série, une semaine d'écart.
+        ResponseEntity<Map> created = rest.postForEntity("/api/v1/matches", new HttpEntity<>(body, headers("orga-s", "Fatou Sow")), Map.class);
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(created.getBody().get("organizerName")).isEqualTo("Fatou Sow");
+        Object series = created.getBody().get("seriesId");
+        assertThat(series).isNotNull();
+        assertThat(jdbc.sql("select count(*) from sport_match where series_id = cast(:s as uuid)").param("s", series).query(Long.class).single()).isEqualTo(4L);
+        String matchId = (String) created.getBody().get("id");
+
+        // Filtres : sport + niveau + plage de dates.
+        ResponseEntity<List> filtered = rest.getForEntity("/api/v1/matches?sport=basketball&level=beginner&from=2031-03-01&to=2031-03-12", List.class);
+        assertThat(filtered.getBody()).hasSize(2);
+
+        // Rejoindre (complet) puis quitter : la place se libère.
+        rest.postForEntity("/api/v1/matches/" + matchId + "/join", new HttpEntity<>(headers("joueur-q", "Mamadou Ba")), Map.class);
+        ResponseEntity<List> parts = rest.getForEntity("/api/v1/matches/" + matchId + "/participants", List.class);
+        assertThat(parts.getBody()).extracting(p -> ((Map) p).get("displayName")).containsExactly("Fatou Sow", "Mamadou Ba");
+        ResponseEntity<List> mine = rest.exchange("/api/v1/matches/mine", org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(headers("joueur-q", null)), List.class);
+        assertThat(mine.getBody()).hasSize(1);
+        ResponseEntity<Map> left = rest.postForEntity("/api/v1/matches/" + matchId + "/leave", new HttpEntity<>(headers("joueur-q", "Mamadou Ba")), Map.class);
+        assertThat(left.getBody().get("status")).isEqualTo("OPEN");
+        assertThat(rest.postForEntity("/api/v1/matches/" + matchId + "/leave", new HttpEntity<>(headers("orga-s", null)), Map.class)
+                .getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        // Feuille de présence sur un match passé (inséré directement) → fiabilité.
+        UUID past = UUID.randomUUID();
+        jdbc.sql("""
+                insert into sport_match (id, venue_id, sport, starts_at, duration_minutes, max_players, level, organizer_id, status)
+                values (:id, :venue, 'FOOTBALL', now() - interval '2 days', 60, 10, 'INTERMEDIATE', 'orga-s', 'FULL')
+                """).param("id", past).param("venue", venueId).update();
+        jdbc.sql("insert into match_participant (match_id, player_id) values (:id, 'orga-s'), (:id, 'joueur-q')").param("id", past).update();
+        ResponseEntity<List> marked = rest.postForEntity("/api/v1/matches/" + past + "/attendance",
+                new HttpEntity<>(Map.of("playerId", "joueur-q", "present", false), headers("orga-s", null)), List.class);
+        assertThat(marked.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(rest.postForEntity("/api/v1/matches/" + past + "/attendance",
+                new HttpEntity<>(Map.of("playerId", "orga-s", "present", true), headers("joueur-q", null)), Map.class)
+                .getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        rest.postForEntity("/api/v1/matches/" + past + "/attendance",
+                new HttpEntity<>(Map.of("playerId", "orga-s", "present", true), headers("orga-s", null)), List.class);
+
+        ResponseEntity<Map> profile = rest.getForEntity("/api/v1/players/joueur-q", Map.class);
+        Map stats = (Map) profile.getBody().get("stats");
+        assertThat(stats.get("noShows")).isEqualTo(1);
+        assertThat(stats.get("reliabilityPercent")).isEqualTo(0);
+
+        // Profil éditable : le nom suit dans les matchs.
+        ResponseEntity<Map> updated = rest.exchange("/api/v1/me/profile", org.springframework.http.HttpMethod.PUT,
+                new HttpEntity<>(Map.of("displayName", "Fatou S.", "favoriteSport", "basketball", "district", "Mermoz"), headers("orga-s", null)), Map.class);
+        assertThat(updated.getBody().get("favoriteSport")).isEqualTo("BASKETBALL");
+        assertThat(((Map) updated.getBody().get("stats")).get("reliabilityPercent")).isEqualTo(100);
+        assertThat(rest.getForEntity("/api/v1/matches/" + matchId, Map.class).getBody().get("organizerName")).isEqualTo("Fatou S.");
+    }
+
+    private static HttpHeaders headers(String userId, String name) {
+        HttpHeaders headers = headers(userId);
+        if (name != null) {
+            headers.set("X-User-Name", java.net.URLEncoder.encode(name, java.nio.charset.StandardCharsets.UTF_8));
+        }
+        return headers;
+    }
+
     private static HttpHeaders headers(String userId) {
         HttpHeaders headers = jsonHeaders();
         headers.set("X-User-Id", userId);

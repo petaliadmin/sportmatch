@@ -29,6 +29,24 @@ class NotificationFactoryTest {
     }
 
     @Test
+    void unDepartPrevientLOrganisateurAvecLeNomDuJoueur() {
+        var n = NotificationFactory.from(event("match.player-left",
+                Map.of("organizerId", "awa", "playerId", "moussa", "playerName", "Moussa Diop", "participants", 3, "maxPlayers", 10)));
+        assertThat(n).isPresent();
+        assertThat(n.get().title()).isEqualTo("Une place s'est libérée");
+        assertThat(n.get().body()).startsWith("Moussa Diop").contains("3/10");
+    }
+
+    @Test
+    void uneSerieHebdomadaireNeNotifieQuUneFois() {
+        var first = NotificationFactory.from(event("match.created", Map.of("organizerId", "awa", "occurrence", 0, "occurrences", 4)));
+        var next = NotificationFactory.from(event("match.created", Map.of("organizerId", "awa", "occurrence", 1, "occurrences", 4)));
+        assertThat(first).isPresent();
+        assertThat(first.get().body()).contains("Série de 4 matchs");
+        assertThat(next).isEmpty();
+    }
+
+    @Test
     void unEvenementInconnuNeProduitPasDeNotification() {
         assertThat(NotificationFactory.from(event("match.archived", Map.of("organizerId", "awa")))).isEmpty();
     }

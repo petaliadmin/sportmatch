@@ -57,4 +57,20 @@ public class NotificationStore {
                 .query(Notification.class)
                 .list();
     }
+
+    public long unreadCount(String userId) {
+        return jdbc.sql("select count(*) from notification where user_id = :userId and read_at is null")
+                .param("userId", userId).query(Long.class).single();
+    }
+
+    /** Marque une notification lue ; renvoie false si elle n'appartient pas à l'utilisateur. */
+    public boolean markRead(String userId, UUID id) {
+        return jdbc.sql("update notification set read_at = coalesce(read_at, now()) where id = :id and user_id = :userId")
+                .param("id", id).param("userId", userId).update() > 0;
+    }
+
+    public int markAllRead(String userId) {
+        return jdbc.sql("update notification set read_at = now() where user_id = :userId and read_at is null")
+                .param("userId", userId).update();
+    }
 }

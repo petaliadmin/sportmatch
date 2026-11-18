@@ -155,4 +155,34 @@ cancel_notified() { curl -fsS "$GATEWAY/api/v1/notifications" -H "Authorization:
 retry 30 2 cancel_notified || fail "Moussa n'a pas été prévenu de l'annulation"
 echo "  ✓ match annulé, Moussa notifié"
 
-printf '\n\033[1;32m✅ Phase 5 validée : matchs, PostGIS, notifications, chat, réservations, tournois, rôles, espace pro, back-office et modération fonctionnent de bout en bout.\033[0m\n'
+step "16. Série hebdomadaire, filtres, mes matchs, départ d'un joueur"
+FATOU=$(token_for fatou.orga)
+SERIES=$(curl -fsS -X POST "$GATEWAY/api/v1/matches" -H "Authorization: Bearer $FATOU" -H 'Content-Type: application/json' \
+  -d "{\"venueId\":\"$VENUE_ID\",\"sport\":\"FOOTBALL\",\"startsAt\":\"2031-01-07T19:00:00Z\",\"durationMinutes\":60,\"maxPlayers\":2,\"level\":\"ADVANCED\",\"repeatWeeks\":2}")
+SERIES_MATCH=$(echo "$SERIES" | json_field id)
+echo "$SERIES" | grep -q '"seriesId":"' || fail "Série non créée : $SERIES"
+FOUND=$(curl -fsS "$GATEWAY/api/v1/matches?sport=football&level=advanced&from=2031-01-01&to=2031-01-31" | grep -o '"seriesId":"' | wc -l | tr -d ' ')
+[ "$FOUND" -ge 3 ] || fail "Filtres : 3 occurrences attendues, $FOUND trouvées"
+echo "  ✓ série de 3 matchs, retrouvée par les filtres sport + niveau + dates"
+[ "$(code "" /api/v1/matches/mine)" = "401" ] || fail "Mes matchs doit exiger un jeton"
+curl -fsS -X POST "$GATEWAY/api/v1/matches/$SERIES_MATCH/join" -H "Authorization: Bearer $AWA" | grep -q '"status":"FULL"' || fail "Awa n'a pas rejoint"
+curl -fsS "$GATEWAY/api/v1/matches/mine" -H "Authorization: Bearer $AWA" | grep -q "$SERIES_MATCH" || fail "Match absent de « mes matchs »"
+curl -fsS "$GATEWAY/api/v1/matches/$SERIES_MATCH/participants" | grep -q '"displayName":"Awa' || fail "Nom du participant absent"
+curl -fsS -X POST "$GATEWAY/api/v1/matches/$SERIES_MATCH/leave" -H "Authorization: Bearer $AWA" | grep -q '"status":"OPEN"' || fail "Départ refusé"
+place_freed() { curl -fsS "$GATEWAY/api/v1/notifications" -H "Authorization: Bearer $FATOU" | grep -q "Une place s'est libérée"; }
+retry 30 2 place_freed || fail "Fatou n'a pas été prévenue du départ"
+echo "  ✓ Awa rejoint puis quitte : le match redevient ouvert, Fatou est prévenue"
+
+step "17. Profil joueur et notifications lues / non lues"
+PROFILE=$(curl -fsS -X PUT "$GATEWAY/api/v1/me/profile" -H "Authorization: Bearer $MOUSSA" -H 'Content-Type: application/json' \
+  -d '{"displayName":"Moussa D.","favoriteSport":"football","level":"intermediate","district":"Ngor","bio":"Gardien, dispo le soir"}')
+echo "$PROFILE" | grep -q '"district":"Ngor"' || fail "Profil non enregistré : $PROFILE"
+MOUSSA_ID=$(echo "$PROFILE" | json_field userId)
+curl -fsS "$GATEWAY/api/v1/players/$MOUSSA_ID" -H "Authorization: Bearer $AWA" | grep -q '"displayName":"Moussa D."' || fail "Profil public introuvable"
+UNREAD=$(curl -fsS "$GATEWAY/api/v1/notifications/unread-count" -H "Authorization: Bearer $FATOU" | json_field unread)
+[ "${UNREAD:-0}" -gt 0 ] || fail "Aucune notification non lue pour Fatou"
+curl -fsS -X POST "$GATEWAY/api/v1/notifications/read-all" -H "Authorization: Bearer $FATOU" > /dev/null
+[ "$(curl -fsS "$GATEWAY/api/v1/notifications/unread-count" -H "Authorization: Bearer $FATOU" | json_field unread)" = "0" ] || fail "Notifications toujours non lues"
+echo "  ✓ profil public, $UNREAD notification(s) non lue(s) puis tout marqué lu"
+
+printf '\n\033[1;32m✅ Phase 6 validée : de la recherche de match à la fiabilité des joueurs, tout fonctionne de bout en bout.\033[0m\n'

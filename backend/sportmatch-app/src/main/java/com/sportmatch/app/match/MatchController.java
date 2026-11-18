@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,7 +24,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1")
 public class MatchController {
 
-    static final String USER_HEADER = "X-User-Id";
+    static final String USER_HEADER = Identity.USER_HEADER;
 
     private final MatchService service;
 
@@ -54,8 +55,37 @@ public class MatchController {
     }
 
     @GetMapping("/matches")
-    public List<MatchView> matches(@RequestParam(name = "status", defaultValue = "OPEN") String status) {
-        return service.matches(status);
+    public List<MatchView> matches(@RequestParam(name = "status", defaultValue = "OPEN") String status,
+                                   @RequestParam(name = "sport", required = false) String sport,
+                                   @RequestParam(name = "level", required = false) String level,
+                                   @RequestParam(name = "from", required = false) LocalDate from,
+                                   @RequestParam(name = "to", required = false) LocalDate to) {
+        return service.matches(new MatchFilter(status, sport, level, from, to));
+    }
+
+    /** Mes matchs (organisés ou rejoints). Déclaré avant /matches/{id} : la gateway exige un jeton sur ce chemin. */
+    @GetMapping("/matches/mine")
+    public List<MatchView> mine(@RequestHeader(USER_HEADER) String userId) {
+        return service.mine(userId);
+    }
+
+    @GetMapping("/matches/{id}/participants")
+    public List<MatchService.Participant> participants(@PathVariable("id") UUID id) {
+        return service.participants(id);
+    }
+
+    @PostMapping("/matches/{id}/leave")
+    public MatchView leave(@RequestHeader(USER_HEADER) String userId,
+                           @RequestHeader(name = Identity.NAME_HEADER, required = false) String name,
+                           @PathVariable("id") UUID id) {
+        return service.leave(userId, Identity.decode(name), id);
+    }
+
+    @PostMapping("/matches/{id}/attendance")
+    public List<MatchService.Participant> attendance(@RequestHeader(USER_HEADER) String userId,
+                                                     @PathVariable("id") UUID id,
+                                                     @Valid @RequestBody AttendanceRequest request) {
+        return service.markAttendance(userId, id, request.playerId(), request.present());
     }
 
     @GetMapping("/matches/{id}")
@@ -65,8 +95,9 @@ public class MatchController {
 
     @PostMapping("/matches")
     public ResponseEntity<MatchView> create(@RequestHeader(USER_HEADER) String userId,
+                                            @RequestHeader(name = Identity.NAME_HEADER, required = false) String name,
                                             @Valid @RequestBody CreateMatchRequest request) {
-        MatchView created = service.create(userId, request);
+        MatchView created = service.create(userId, Identity.decode(name), request);
         return ResponseEntity.created(URI.create("/api/v1/matches/" + created.id())).body(created);
     }
 
@@ -74,12 +105,13 @@ public class MatchController {
     public MatchView cancel(@RequestHeader(USER_HEADER) String userId,
                             @RequestHeader(name = "X-User-Roles", required = false) String roles,
                             @PathVariable("id") UUID id) {
-        boolean admin = roles != null && java.util.Arrays.asList(roles.split(",")).contains("admin");
-        return service.cancel(userId, admin, id);
+        return service.cancel(userId, Identity.hasRole(roles, "admin"), id);
     }
 
     @PostMapping("/matches/{id}/join")
-    public MatchView join(@RequestHeader(USER_HEADER) String userId, @PathVariable("id") UUID id) {
-        return service.join(userId, id);
+    public MatchView join(@RequestHeader(USER_HEADER) String userId,
+                          @RequestHeader(name = Identity.NAME_HEADER, required = false) String name,
+                          @PathVariable("id") UUID id) {
+        return service.join(userId, Identity.decode(name), id);
     }
 }

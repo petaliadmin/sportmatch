@@ -35,7 +35,7 @@ public class RoutesConfig {
     RouteLocator sportmatchRoutes(RouteLocatorBuilder builder, ServiceUris uris) {
         return builder.routes()
                 .route("sportmatch-chat-ws", r -> r.path("/api/v1/chat/ws").uri(uris.chat()))
-                .route("sportmatch-app", r -> r.path("/api/v1/venues/**", "/api/v1/matches/**")
+                .route("sportmatch-app", r -> r.path("/api/v1/venues/**", "/api/v1/matches/**", "/api/v1/players/**", "/api/v1/me/**")
                         .filters(f -> resilient(f, "app")).uri(uris.app()))
                 .route("sportmatch-events", r -> r.path("/api/v1/events/**")
                         .filters(f -> resilient(f, "events")).uri(uris.events()))

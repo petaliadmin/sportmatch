@@ -1,6 +1,6 @@
 "use client";
 import { ArrowLeft, LogIn, LogOut, Radio } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Logo } from "@/components/shells/brand";
 import { SoundToggle, ThemeToggle } from "@/components/shells/console-shell";
 import { Avatar, Badge, Button, Card, Tabs } from "@/components/ui";
@@ -13,11 +13,13 @@ import { AdminPanel } from "./admin";
 import { MatchesPanel } from "./matches";
 import { ProPanel } from "./pro";
 import { NotificationsPanel } from "./notifications";
+import { ProfilePanel } from "./profile";
+import { useApi } from "./hooks";
 import { TournamentsPanel } from "./tournaments";
 import { VenuesPanel } from "./venues";
 
-type Tab = "venues" | "matches" | "bookings" | "tournaments" | "chat" | "notifications" | "pro" | "admin";
-const PRIVATE: Tab[] = ["bookings", "chat", "notifications"];
+type Tab = "venues" | "matches" | "bookings" | "tournaments" | "chat" | "notifications" | "profile" | "pro" | "admin";
+const PRIVATE: Tab[] = ["bookings", "chat", "notifications", "profile"];
 
 /** Espace « Bêta live » : l'interface SportMatch branchée sur les microservices réels (via la gateway). */
 export function LiveSpace() {
@@ -29,6 +31,28 @@ function Live() {
   const { ready, user, login, logout } = useSession();
   const [tab, setTab] = useState<Tab>("venues");
   const [chatMatch, setChatMatch] = useState<string | null>(null);
+  const [focusMatch, setFocusMatch] = useState<string | null>(null);
+  const [unread, setUnread] = useState(0);
+  const client = useApi();
+
+  // Lien partagé : ?match=<id>#live ouvre directement le détail du match.
+  useEffect(() => {
+    try {
+      const id = new URLSearchParams(window.location.search).get("match");
+      if (id && /^[0-9a-f-]{36}$/i.test(id)) { setTab("matches"); setFocusMatch(id); }
+    } catch {}
+  }, []);
+
+  // Pastille des notifications non lues (rafraîchie toutes les 30 s).
+  const refreshUnread = useCallback(() => {
+    if (!user) { setUnread(0); return; }
+    client.unreadCount().then((r) => setUnread(r.unread)).catch(() => undefined);
+  }, [client, user]);
+  useEffect(() => {
+    refreshUnread();
+    const t = setInterval(refreshUnread, 30000);
+    return () => clearInterval(t);
+  }, [refreshUnread]);
 
   return (
     <div className="min-h-screen">
@@ -56,7 +80,9 @@ function Live() {
           <>
             <Tabs<Tab> className="mb-5" value={tab} onChange={setTab} tabs={[
               { value: "venues", label: "Terrains" }, { value: "matches", label: "Matchs" }, { value: "bookings", label: "Réservations" },
-              { value: "tournaments", label: "Tournois" }, { value: "chat", label: "Chat" }, { value: "notifications", label: "Notifications" },
+              { value: "tournaments", label: "Tournois" }, { value: "chat", label: "Chat" },
+              { value: "notifications", label: "Notifications", count: user && unread ? unread : undefined },
+              { value: "profile", label: "Profil" },
               ...(user?.roles.includes("provider") ? [{ value: "pro" as Tab, label: "Espace pro" }] : []),
               ...(user?.roles.includes("admin") ? [{ value: "admin" as Tab, label: "Admin" }] : []),
             ]} />
@@ -69,11 +95,12 @@ function Live() {
             ) : (
               <>
                 {tab === "venues" && <VenuesPanel />}
-                {tab === "matches" && <MatchesPanel onOpenChat={(id) => { setChatMatch(id); setTab("chat"); }} />}
+                {tab === "matches" && <MatchesPanel focusMatchId={focusMatch} onOpenChat={(id) => { setChatMatch(id); setTab("chat"); }} />}
                 {tab === "bookings" && <BookingsPanel />}
                 {tab === "tournaments" && <TournamentsPanel />}
                 {tab === "chat" && <ChatPanel focusMatchId={chatMatch} />}
-                {tab === "notifications" && <NotificationsPanel />}
+                {tab === "notifications" && <NotificationsPanel onUnreadChange={setUnread} />}
+                {tab === "profile" && <ProfilePanel />}
                 {tab === "pro" && user?.roles.includes("provider") && <ProPanel />}
                 {tab === "admin" && user?.roles.includes("admin") && <AdminPanel />}
               </>

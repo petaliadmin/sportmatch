@@ -24,13 +24,20 @@ public final class NotificationFactory {
     public static Optional<NewNotification> from(EventEnvelope event) {
         JsonNode p = event.payload();
         return switch (event.eventType()) {
-            case "match.created" -> recipient(p, "organizerId").map(to -> new NewNotification(to,
+            case "match.created" -> p.path("occurrence").asInt(0) > 0 ? Optional.empty()
+                    : recipient(p, "organizerId").map(to -> new NewNotification(to,
                     "Ton match est publié",
-                    "Les joueurs du coin peuvent maintenant le rejoindre."));
+                    p.path("occurrences").asInt(1) > 1
+                            ? "Série de " + p.path("occurrences").asInt() + " matchs hebdomadaires publiée : les joueurs du coin peuvent les rejoindre."
+                            : "Les joueurs du coin peuvent maintenant le rejoindre."));
             case "match.player-joined" -> recipient(p, "organizerId").map(to -> new NewNotification(to,
                     "Un joueur a rejoint ton match",
-                    "Un nouveau joueur a rejoint ton match (" + p.path("participants").asInt()
+                    p.path("playerName").asText("Un nouveau joueur") + " a rejoint ton match (" + p.path("participants").asInt()
                             + "/" + p.path("maxPlayers").asInt() + ")."));
+            case "match.player-left" -> recipient(p, "organizerId").map(to -> new NewNotification(to,
+                    "Une place s'est libérée",
+                    p.path("playerName").asText("Un joueur") + " s'est retiré de ton match (" + p.path("participants").asInt()
+                            + "/" + p.path("maxPlayers").asInt() + "). Le match est de nouveau ouvert."));
             case "booking.confirmed" -> recipient(p, "userId").map(to -> new NewNotification(to,
                     "Réservation confirmée",
                     place(p) + ", " + when(p.path("startsAt").asText()) + ". Réservation de démonstration : aucun paiement."));

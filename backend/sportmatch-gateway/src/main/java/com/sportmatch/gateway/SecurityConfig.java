@@ -36,6 +36,7 @@ public class SecurityConfig {
                         .pathMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                         .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .pathMatchers("/fallback/**").permitAll()
+                        .pathMatchers("/api/v1/matches/mine").authenticated()
                         .pathMatchers(HttpMethod.GET, "/api/v1/venues/**", "/api/v1/matches/**", "/api/v1/business/courts/**",
                                 "/api/v1/events/tournaments/**").permitAll()
                         // Espaces réservés : contrôle par rôle Keycloak dès la gateway (les services revérifient).

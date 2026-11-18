@@ -13,6 +13,8 @@ public record MatchView(
         int maxPlayers,
         String level,
         String organizerId,
+        String organizerName,
         String status,
-        int participants) {
+        int participants,
+        UUID seriesId) {
 }
