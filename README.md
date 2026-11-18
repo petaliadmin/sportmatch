@@ -40,4 +40,5 @@ make up      # démarre tout (Docker requis, 8 Go de RAM conseillés)
 make smoke   # parcours de bout en bout
 ```
 
-Guide pas à pas : [docs/integration/PHASE-1-LOCAL.md](docs/integration/PHASE-1-LOCAL.md).
+Guides : [phase 1](docs/integration/PHASE-1-LOCAL.md) · [phase 2A](docs/integration/PHASE-2A.md) · [phase 2B](docs/integration/PHASE-2B.md).
+Interface branchée sur l'API : http://localhost:3000/#live
