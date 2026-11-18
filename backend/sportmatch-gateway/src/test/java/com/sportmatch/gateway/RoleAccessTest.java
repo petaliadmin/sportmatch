@@ -55,9 +55,9 @@ class RoleAccessTest {
     }
 
     @Test
-    void unAdministrateurPasseLaGateway() {
-        // Le service admin n'écoute pas pendant le test : la gateway laisse passer puis renvoie le fallback 503.
-        client.mutateWith(mockJwt().authorities(new SimpleGrantedAuthority("ROLE_admin")))
-                .get().uri("/api/v1/admin/overview").exchange().expectStatus().isEqualTo(503);
+    void unPrestataireNAccedePasAuBackOffice() {
+        // Le passage d'un admin jusqu'au service est vérifié de bout en bout par smoke-test.sh (étape 14).
+        client.mutateWith(mockJwt().authorities(new SimpleGrantedAuthority("ROLE_provider")))
+                .get().uri("/api/v1/admin/overview").exchange().expectStatus().isForbidden();
     }
 }
