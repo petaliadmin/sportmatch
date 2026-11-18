@@ -69,6 +69,15 @@ void main() {
     expect(find.text('Se connecter'), findsOneWidget);
   });
 
+  test('rôles Keycloak lus dans le jeton', () {
+    final user = SessionUser.fromJwt(fakeJwt({
+      'sub': 'adm',
+      'realm_access': {'roles': ['admin', 'player']},
+    }));
+    expect(user.isAdmin, isTrue);
+    expect(SessionUser.fromJwt(fakeJwt({'sub': 'u'})).roles, isEmpty);
+  });
+
   test('identité lue dans le jeton', () {
     final user = SessionUser.fromJwt(fakeJwt({'sub': 'u-1', 'name': 'Moussa Diop', 'email': 'moussa@demo.sportmatch.test'}));
     expect(user.id, 'u-1');

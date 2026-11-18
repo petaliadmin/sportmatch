@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../app.dart';
 
 import 'chat_screen.dart';
 import 'matches_screen.dart';
@@ -15,17 +19,42 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _tab = 0;
-
-  static const _tabs = [
-    NavigationDestination(icon: Icon(Icons.place_outlined), selectedIcon: Icon(Icons.place), label: 'Terrains'),
-    NavigationDestination(icon: Icon(Icons.sports_soccer_outlined), selectedIcon: Icon(Icons.sports_soccer), label: 'Matchs'),
-    NavigationDestination(icon: Icon(Icons.emoji_events_outlined), selectedIcon: Icon(Icons.emoji_events), label: 'Tournois'),
-    NavigationDestination(icon: Icon(Icons.chat_bubble_outline), selectedIcon: Icon(Icons.chat_bubble), label: 'Chat'),
-    NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profil'),
-  ];
+  int _unread = 0;
+  Timer? _poll;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  void initState() {
+    super.initState();
+    _poll = Timer.periodic(const Duration(seconds: 30), (_) => _refreshUnread());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshUnread());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  /// Nombre de notifications non lues, affiché en pastille sur l'onglet Profil.
+  Future<void> _refreshUnread() async {
+    if (!mounted) return;
+    final scope = AppScope.of(context);
+    if (!scope.session.signedIn) {
+      if (_unread != 0) setState(() => _unread = 0);
+      return;
+    }
+    try {
+      final n = await scope.api.unreadCount();
+      if (mounted && n != _unread) setState(() => _unread = n);
+    } catch (_) {
+      // hors ligne ou réponse inattendue : on garde la dernière valeur
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => UnreadBadge(
+      onRefresh: _refreshUnread,
+      child: Scaffold(
         body: SafeArea(
           child: IndexedStack(index: _tab, children: const [
             VenuesScreen(),
@@ -37,10 +66,36 @@ class _HomeShellState extends State<HomeShell> {
         ),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _tab,
-          destinations: _tabs,
-          onDestinationSelected: (i) => setState(() => _tab = i),
+          destinations: [
+            const NavigationDestination(icon: Icon(Icons.place_outlined), selectedIcon: Icon(Icons.place), label: 'Terrains'),
+            const NavigationDestination(icon: Icon(Icons.sports_soccer_outlined), selectedIcon: Icon(Icons.sports_soccer), label: 'Matchs'),
+            const NavigationDestination(icon: Icon(Icons.emoji_events_outlined), selectedIcon: Icon(Icons.emoji_events), label: 'Tournois'),
+            const NavigationDestination(icon: Icon(Icons.chat_bubble_outline), selectedIcon: Icon(Icons.chat_bubble), label: 'Chat'),
+            NavigationDestination(
+              icon: Badge(isLabelVisible: _unread > 0, label: Text('$_unread'), child: const Icon(Icons.person_outline)),
+              selectedIcon: Badge(isLabelVisible: _unread > 0, label: Text('$_unread'), child: const Icon(Icons.person)),
+              label: 'Profil',
+              tooltip: _unread > 0 ? 'Profil, $_unread notification(s) non lue(s)' : 'Profil',
+            ),
+          ],
+          onDestinationSelected: (i) {
+            setState(() => _tab = i);
+            _refreshUnread();
+          },
         ),
-      );
+      ));
+}
+
+/// Permet aux écrans de demander un rafraîchissement de la pastille (après lecture d'une notification).
+class UnreadBadge extends InheritedWidget {
+  const UnreadBadge({super.key, required this.onRefresh, required super.child});
+
+  final Future<void> Function() onRefresh;
+
+  static void refresh(BuildContext context) => context.getInheritedWidgetOfExactType<UnreadBadge>()?.onRefresh();
+
+  @override
+  bool updateShouldNotify(UnreadBadge oldWidget) => false;
 }
 
 /// En-tête commun des onglets.

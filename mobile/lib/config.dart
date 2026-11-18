@@ -7,6 +7,11 @@ class AppConfig {
   static const clientId = 'sportmatch-mobile';
   static const redirectUrl = 'com.sportmatch.app:/oauthredirect';
 
+  /// Adresse du site web, utilisée pour les liens de partage d'un match (?match=<id>#live).
+  static const webUrl = String.fromEnvironment('WEB_URL', defaultValue: 'http://localhost:3080');
+
+  static String matchLink(String matchId) => '$webUrl/?match=$matchId#live';
+
   static String get issuer => '$keycloakUrl/realms/$realm';
 
   /// HTTP en clair autorisé uniquement pour un environnement local (jamais en staging/production).

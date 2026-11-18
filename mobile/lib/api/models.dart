@@ -30,7 +30,7 @@ class Venue {
 class SportMatchGame {
   SportMatchGame({required this.id, required this.venueId, required this.venueName, required this.sport,
       required this.startsAt, required this.durationMinutes, required this.maxPlayers, required this.level,
-      required this.organizerId, required this.status, required this.participants});
+      required this.organizerId, required this.status, required this.participants, this.organizerName, this.seriesId});
 
   final String id;
   final String venueId;
@@ -43,8 +43,12 @@ class SportMatchGame {
   final String organizerId;
   final String status;
   final int participants;
+  final String? organizerName;
+  final String? seriesId;
 
   bool get isOpen => status == 'OPEN';
+  bool get isCancelled => status == 'CANCELLED';
+  bool get isUpcoming => startsAt.isAfter(DateTime.now());
 
   factory SportMatchGame.fromJson(Map<String, dynamic> j) => SportMatchGame(
         id: j['id'] as String,
@@ -58,6 +62,67 @@ class SportMatchGame {
         organizerId: j['organizerId'] as String,
         status: j['status'] as String,
         participants: (j['participants'] as num).toInt(),
+        organizerName: j['organizerName'] as String?,
+        seriesId: j['seriesId'] as String?,
+      );
+}
+
+/// Joueur inscrit à un match ; attended = null tant que l'organisateur n'a pas rempli la feuille de présence.
+class Participant {
+  Participant({required this.playerId, required this.displayName, this.attended});
+
+  final String playerId;
+  final String displayName;
+  final bool? attended;
+
+  factory Participant.fromJson(Map<String, dynamic> j) => Participant(
+        playerId: j['playerId'] as String,
+        displayName: j['displayName'] as String,
+        attended: j['attended'] as bool?,
+      );
+}
+
+class PlayerStats {
+  PlayerStats({required this.matchesJoined, required this.matchesOrganized, required this.attendanceRated,
+      required this.noShows, this.reliabilityPercent});
+
+  final int matchesJoined;
+  final int matchesOrganized;
+  final int attendanceRated;
+  final int noShows;
+  final int? reliabilityPercent;
+
+  String get reliabilityLabel => reliabilityPercent == null ? 'Nouveau joueur' : '$reliabilityPercent %';
+
+  factory PlayerStats.fromJson(Map<String, dynamic> j) => PlayerStats(
+        matchesJoined: (j['matchesJoined'] as num).toInt(),
+        matchesOrganized: (j['matchesOrganized'] as num).toInt(),
+        attendanceRated: (j['attendanceRated'] as num).toInt(),
+        noShows: (j['noShows'] as num).toInt(),
+        reliabilityPercent: (j['reliabilityPercent'] as num?)?.toInt(),
+      );
+}
+
+class PlayerProfile {
+  PlayerProfile({required this.userId, required this.displayName, required this.stats,
+      this.favoriteSport, this.level, this.district, this.bio});
+
+  final String userId;
+  final String displayName;
+  final String? favoriteSport;
+  final String? level;
+  final String? district;
+  final String? bio;
+  final PlayerStats stats;
+
+  factory PlayerProfile.fromJson(Map<String, dynamic> j) => PlayerProfile(
+        userId: j['userId'] as String,
+        displayName: j['displayName'] as String,
+        favoriteSport: j['favoriteSport'] as String?,
+        level: j['level'] as String?,
+        district: j['district'] as String?,
+        bio: j['bio'] as String?,
+        stats: PlayerStats.fromJson(j['stats'] as Map<String, dynamic>),
       );
 }
 
@@ -112,18 +177,22 @@ class Booking {
 }
 
 class NotificationItem {
-  NotificationItem({required this.id, required this.title, required this.body, required this.createdAt});
+  NotificationItem({required this.id, required this.title, required this.body, required this.createdAt, this.readAt});
 
   final String id;
   final String title;
   final String body;
   final DateTime createdAt;
+  final DateTime? readAt;
+
+  bool get unread => readAt == null;
 
   factory NotificationItem.fromJson(Map<String, dynamic> j) => NotificationItem(
         id: j['id'] as String,
         title: j['title'] as String,
         body: j['body'] as String,
         createdAt: _date(j['createdAt']),
+        readAt: _dateOrNull(j['readAt']),
       );
 }
 

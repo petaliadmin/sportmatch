@@ -57,4 +57,43 @@ void main() {
     final api = ApiClient(baseUrl: 'http://api.test', httpClient: MockClient((_) async => throw http.ClientException('refused')));
     expect(() => api.matches(), throwsA(isA<ApiException>().having((e) => e.status, 'status', 0)));
   });
+
+  test('recherche de matchs filtrée : paramètres de requête', () async {
+    late http.Request seen;
+    final api = ApiClient(
+      baseUrl: 'http://api.test',
+      httpClient: MockClient((req) async {
+        seen = req;
+        return http.Response('[]', 200);
+      }),
+    );
+    await api.matches(sport: 'FOOTBALL', level: 'ADVANCED', from: DateTime.utc(2031, 1, 1), to: DateTime.utc(2031, 1, 31));
+    expect(seen.url.queryParameters, {'status': 'OPEN', 'sport': 'FOOTBALL', 'level': 'ADVANCED', 'from': '2031-01-01', 'to': '2031-01-31'});
+  });
+
+  test('profil joueur et fiabilité désérialisés', () async {
+    final api = ApiClient(
+      baseUrl: 'http://api.test',
+      httpClient: MockClient((_) async => http.Response.bytes(utf8.encode(jsonEncode({
+            'userId': 'u-1', 'displayName': 'Moussa D.', 'favoriteSport': 'FOOTBALL', 'level': null, 'district': 'Ngor', 'bio': null,
+            'stats': {'matchesJoined': 5, 'matchesOrganized': 1, 'attendanceRated': 4, 'noShows': 1, 'reliabilityPercent': 75},
+          })), 200)),
+    );
+    final p = await api.player('u-1');
+    expect(p.displayName, 'Moussa D.');
+    expect(p.level, isNull);
+    expect(p.stats.reliabilityLabel, '75 %');
+  });
+
+  test('participants : présence non renseignée = null', () async {
+    final api = ApiClient(
+      baseUrl: 'http://api.test',
+      httpClient: MockClient((_) async => http.Response.bytes(utf8.encode(jsonEncode([
+            {'playerId': 'a', 'displayName': 'Awa', 'joinedAt': '2030-06-01T10:00:00Z', 'attended': null},
+            {'playerId': 'b', 'displayName': 'Moussa', 'joinedAt': '2030-06-01T11:00:00Z', 'attended': false},
+          ])), 200)),
+    );
+    final people = await api.participants('m1');
+    expect(people.map((p) => p.attended), [null, false]);
+  });
 }

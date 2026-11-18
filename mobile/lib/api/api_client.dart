@@ -74,10 +74,33 @@ class ApiClient {
       Booking.fromJson(await _send('POST', '/api/v1/business/bookings/$id/cancel', {}));
 
   // ---- Matchs
-  Future<List<SportMatchGame>> matches({String status = 'OPEN'}) =>
-      _list('/api/v1/matches?status=$status', SportMatchGame.fromJson);
+  Future<List<SportMatchGame>> matches({String status = 'OPEN', String? sport, String? level, DateTime? from, DateTime? to}) {
+    final query = <String, String>{
+      'status': status,
+      if (sport != null) 'sport': sport,
+      if (level != null) 'level': level,
+      if (from != null) 'from': _day(from),
+      if (to != null) 'to': _day(to),
+    };
+    return _list('/api/v1/matches?${Uri(queryParameters: query).query}', SportMatchGame.fromJson);
+  }
+
+  static String _day(DateTime d) => d.toUtc().toIso8601String().substring(0, 10);
+
+  Future<SportMatchGame> match(String id) async => SportMatchGame.fromJson(await _send('GET', '/api/v1/matches/$id'));
+  Future<List<SportMatchGame>> myMatches() => _list('/api/v1/matches/mine', SportMatchGame.fromJson);
+  Future<List<Participant>> participants(String matchId) =>
+      _list('/api/v1/matches/$matchId/participants', Participant.fromJson);
+  Future<SportMatchGame> leaveMatch(String id) async =>
+      SportMatchGame.fromJson(await _send('POST', '/api/v1/matches/$id/leave', {}));
+  Future<SportMatchGame> cancelMatch(String id) async =>
+      SportMatchGame.fromJson(await _send('POST', '/api/v1/matches/$id/cancel', {}));
+  Future<List<Participant>> markAttendance(String matchId, String playerId, bool present) async =>
+      ((await _send('POST', '/api/v1/matches/$matchId/attendance', {'playerId': playerId, 'present': present})) as List)
+          .map((e) => Participant.fromJson(e as Map<String, dynamic>))
+          .toList();
   Future<SportMatchGame> createMatch({required String venueId, required String sport, required DateTime startsAt,
-          required int durationMinutes, required int maxPlayers, required String level}) async =>
+          required int durationMinutes, required int maxPlayers, required String level, int repeatWeeks = 0}) async =>
       SportMatchGame.fromJson(await _send('POST', '/api/v1/matches', {
         'venueId': venueId,
         'sport': sport,
@@ -85,6 +108,7 @@ class ApiClient {
         'durationMinutes': durationMinutes,
         'maxPlayers': maxPlayers,
         'level': level,
+        'repeatWeeks': repeatWeeks,
       }));
   Future<SportMatchGame> joinMatch(String id) async =>
       SportMatchGame.fromJson(await _send('POST', '/api/v1/matches/$id/join', {}));
@@ -105,4 +129,21 @@ class ApiClient {
   Future<ChatMessage> send(String conversationId, String body) async => ChatMessage.fromJson(
       await _send('POST', '/api/v1/chat/conversations/$conversationId/messages', {'body': body}));
   Future<List<NotificationItem>> notifications() => _list('/api/v1/notifications', NotificationItem.fromJson);
+  Future<int> unreadCount() async =>
+      (((await _send('GET', '/api/v1/notifications/unread-count')) as Map<String, dynamic>)['unread'] as num).toInt();
+  Future<void> markRead(String id) => _send('POST', '/api/v1/notifications/$id/read', {});
+  Future<void> markAllRead() => _send('POST', '/api/v1/notifications/read-all', {});
+
+  // ---- Profil joueur
+  Future<PlayerProfile> myProfile() async => PlayerProfile.fromJson(await _send('GET', '/api/v1/me/profile'));
+  Future<PlayerProfile> updateProfile({required String displayName, String? favoriteSport, String? level, String? district, String? bio}) async =>
+      PlayerProfile.fromJson(await _send('PUT', '/api/v1/me/profile', {
+        'displayName': displayName,
+        'favoriteSport': favoriteSport,
+        'level': level,
+        'district': district,
+        'bio': bio,
+      }));
+  Future<PlayerProfile> player(String id) async =>
+      PlayerProfile.fromJson(await _send('GET', '/api/v1/players/${Uri.encodeComponent(id)}'));
 }

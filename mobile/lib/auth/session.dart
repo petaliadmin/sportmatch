@@ -35,11 +35,16 @@ class MemoryTokenStore implements TokenStore {
 }
 
 class SessionUser {
-  SessionUser({required this.id, required this.name, this.email});
+  SessionUser({required this.id, required this.name, this.email, this.roles = const []});
 
   final String id;
   final String name;
   final String? email;
+
+  /// Rôles du realm Keycloak (player, organizer, provider, admin).
+  final List<String> roles;
+
+  bool get isAdmin => roles.contains('admin');
 
   /// Lit les claims d'un JWT (sans vérifier la signature : c'est le rôle de la gateway).
   factory SessionUser.fromJwt(String jwt) {
@@ -49,6 +54,9 @@ class SessionUser {
       id: claims['sub'] as String,
       name: (claims['name'] ?? claims['preferred_username'] ?? 'Joueur·se') as String,
       email: claims['email'] as String?,
+      roles: [
+        for (final r in ((claims['realm_access'] as Map<String, dynamic>?)?['roles'] as List<dynamic>? ?? const [])) r as String,
+      ],
     );
   }
 }

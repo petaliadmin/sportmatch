@@ -10,6 +10,7 @@ class Brand {
   static const muted = Color(0xFF9AA8A2);
   static const danger = Color(0xFFFF6B5E);
   static const gold = Color(0xFFF5C451);
+  static const sky = Color(0xFF6CC4F5);
 }
 
 ThemeData sportMatchTheme() {
