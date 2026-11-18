@@ -1,6 +1,7 @@
 package com.sportmatch.gateway;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
 import org.springframework.cloud.gateway.route.RouteLocator;
@@ -23,9 +24,11 @@ public class RoutesConfig {
     private final RedisRateLimiter rateLimiter;
     private final KeyResolver keyResolver;
 
-    public RoutesConfig(ObjectProvider<RedisRateLimiter> rateLimiter, ObjectProvider<KeyResolver> keyResolver) {
-        this.rateLimiter = rateLimiter.getIfAvailable();
-        this.keyResolver = keyResolver.getIfAvailable();
+    public RoutesConfig(@Value("${sportmatch.rate-limit.enabled:true}") boolean rateLimitEnabled,
+                        ObjectProvider<RedisRateLimiter> rateLimiter, ObjectProvider<KeyResolver> keyResolver) {
+        // Spring Cloud Gateway auto-configure aussi un limiteur dès que Redis est présent : on ne l'applique que si activé.
+        this.rateLimiter = rateLimitEnabled ? rateLimiter.getIfAvailable() : null;
+        this.keyResolver = rateLimitEnabled ? keyResolver.getIfAvailable() : null;
     }
 
     @Bean

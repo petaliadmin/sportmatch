@@ -6,6 +6,7 @@ import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
 import org.springframework.cloud.gateway.support.ipresolver.XForwardedRemoteAddressResolver;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Configuration;
 import reactor.core.publisher.Mono;
 
@@ -21,12 +22,14 @@ import java.net.InetSocketAddress;
 public class RateLimitConfig {
 
     @Bean
+    @Primary
     RedisRateLimiter redisRateLimiter(@Value("${sportmatch.rate-limit.replenish-per-second:50}") int replenish,
                                       @Value("${sportmatch.rate-limit.burst:100}") int burst) {
         return new RedisRateLimiter(replenish, burst, 1);
     }
 
     @Bean
+    @Primary
     KeyResolver userOrIpKeyResolver() {
         XForwardedRemoteAddressResolver ipResolver = XForwardedRemoteAddressResolver.maxTrustedIndex(1);
         return exchange -> exchange.getPrincipal()
