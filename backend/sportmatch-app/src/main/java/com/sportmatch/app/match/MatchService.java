@@ -32,8 +32,12 @@ public class MatchService {
         this.outbox = outbox;
     }
 
+    private static final String VENUE_COLUMNS = """
+            id, name, district, sport, price_per_hour_fcfa, rating,
+            ST_Y(location::geometry) as latitude, ST_X(location::geometry) as longitude""";
+
     public List<Venue> venues(String sport) {
-        String sql = "select id, name, district, sport, price_per_hour_fcfa, rating from venue";
+        String sql = "select " + VENUE_COLUMNS + ", null::float8 as distance_km from venue";
         if (sport == null || sport.isBlank()) {
             return jdbc.sql(sql + " order by name").query(Venue.class).list();
         }
@@ -44,11 +48,27 @@ public class MatchService {
     }
 
     public Venue venue(UUID id) {
-        return jdbc.sql("select id, name, district, sport, price_per_hour_fcfa, rating from venue where id = :id")
+        return jdbc.sql("select " + VENUE_COLUMNS + ", null::float8 as distance_km from venue where id = :id")
                 .param("id", id)
                 .query(Venue.class)
                 .optional()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Terrain introuvable"));
+    }
+
+    /** Terrains dans un rayon donné, du plus proche au plus éloigné (index GiST PostGIS). */
+    public List<Venue> nearby(double latitude, double longitude, double radiusKm, String sport) {
+        String sql = "select " + VENUE_COLUMNS + """
+                , round((ST_Distance(location, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography) / 1000)::numeric, 2)::float8 as distance_km
+                from venue
+                where location is not null
+                  and ST_DWithin(location, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :radius)
+                  and (cast(:sport as varchar) is null or sport = cast(:sport as varchar))
+                order by distance_km
+                """;
+        return jdbc.sql(sql)
+                .param("lat", latitude).param("lng", longitude).param("radius", radiusKm * 1000)
+                .param("sport", sport == null || sport.isBlank() ? null : sport.toUpperCase())
+                .query(Venue.class).list();
     }
 
     public List<MatchView> matches(String status) {

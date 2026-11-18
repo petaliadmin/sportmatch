@@ -17,8 +17,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.ConfluentKafkaContainer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -32,7 +34,8 @@ class MatchFlowIT {
 
     @Container
     @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(
+            DockerImageName.parse("postgis/postgis:16-3.4-alpine").asCompatibleSubstituteFor("postgres"));
 
     @Container
     static ConfluentKafkaContainer kafka = new ConfluentKafkaContainer("confluentinc/cp-kafka:7.7.1");
@@ -80,6 +83,23 @@ class MatchFlowIT {
                 jdbc.sql("select count(*) from outbox_event where published_at is null").query(Long.class).single()).isZero());
         assertThat(jdbc.sql("select count(*) from outbox_event where aggregate_id = :id").param("id", matchId).query(Long.class).single())
                 .isEqualTo(2L);
+    }
+
+    @Test
+    @SuppressWarnings("rawtypes")
+    void rechercheDeTerrainsAProximiteTrieeParDistance() {
+        // Depuis Ngor : Padel House Ngor (sur place) puis Arena Almadies Five (~0,3 km)
+        ResponseEntity<List> near = rest.getForEntity("/api/v1/venues/nearby?lat=14.7505&lng=-17.5128&radiusKm=2", List.class);
+        assertThat(near.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<Map> venues = near.getBody();
+        assertThat(venues).extracting(v -> v.get("name")).containsExactly("Padel House Ngor", "Arena Almadies Five");
+        assertThat(((Number) venues.get(1).get("distanceKm")).doubleValue()).isBetween(0.1, 1.0);
+
+        ResponseEntity<List> football = rest.getForEntity("/api/v1/venues/nearby?lat=14.7505&lng=-17.5128&radiusKm=2&sport=football", List.class);
+        assertThat(football.getBody()).hasSize(1);
+
+        assertThat(rest.getForEntity("/api/v1/venues/nearby?lat=14.7&lng=-17.4&radiusKm=500", Map.class).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     private static HttpHeaders headers(String userId) {

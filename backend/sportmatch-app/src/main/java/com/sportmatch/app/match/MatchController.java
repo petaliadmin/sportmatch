@@ -36,6 +36,18 @@ public class MatchController {
         return service.venues(sport);
     }
 
+    @GetMapping("/venues/nearby")
+    public List<Venue> nearby(@RequestParam("lat") double latitude,
+                              @RequestParam("lng") double longitude,
+                              @RequestParam(name = "radiusKm", defaultValue = "5") double radiusKm,
+                              @RequestParam(name = "sport", required = false) String sport) {
+        if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180 || radiusKm <= 0 || radiusKm > 50) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Coordonnées ou rayon invalides (rayon max 50 km)");
+        }
+        return service.nearby(latitude, longitude, radiusKm, sport);
+    }
+
     @GetMapping("/venues/{id}")
     public Venue venue(@PathVariable("id") UUID id) {
         return service.venue(id);

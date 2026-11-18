@@ -36,7 +36,8 @@ public class SecurityConfig {
                         .pathMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                         .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .pathMatchers("/fallback/**").permitAll()
-                        .pathMatchers(HttpMethod.GET, "/api/v1/venues/**", "/api/v1/matches/**", "/api/v1/business/courts/**").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/v1/venues/**", "/api/v1/matches/**", "/api/v1/business/courts/**",
+                                "/api/v1/events/tournaments/**").permitAll()
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.bearerTokenConverter(bearer).jwt(Customizer.withDefaults()))
                 .build();

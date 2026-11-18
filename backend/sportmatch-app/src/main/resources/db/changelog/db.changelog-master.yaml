@@ -3,3 +3,5 @@ databaseChangeLog:
       file: db/changelog/changes/001-init-schema.sql
   - include:
       file: db/changelog/changes/002-seed-venues-demo.sql
+  - include:
+      file: db/changelog/changes/003-postgis-location.sql

@@ -35,6 +35,12 @@ public final class NotificationFactory {
             case "booking.cancelled" -> recipient(p, "userId").map(to -> new NewNotification(to,
                     "Réservation annulée",
                     place(p) + ", " + when(p.path("startsAt").asText()) + " : le créneau est libéré."));
+            case "tournament.team-registered" -> recipient(p, "captainId").map(to -> new NewNotification(to,
+                    "Équipe inscrite",
+                    p.path("teamName").asText("Ton équipe") + " est inscrite au tournoi « " + p.path("tournamentName").asText("") + " »."));
+            case "tournament.completed" -> recipient(p, "organizerId").map(to -> new NewNotification(to,
+                    "Tournoi terminé",
+                    p.path("championName").asText("") + " remporte « " + p.path("name").asText("") + " » !"));
             default -> Optional.empty();
         };
     }

@@ -34,6 +34,11 @@ echo "$VENUES" | grep -q "Arena Almadies Five" || fail "Terrains de démo absent
 VENUE_ID=$(echo "$VENUES" | json_field id)
 echo "Terrain choisi : $VENUE_ID"
 
+echo "  ✓ $(echo "$VENUES" | grep -o '"id"' | wc -l | tr -d ' ') terrains de football"
+NEARBY=$(curl -fsS "$GATEWAY/api/v1/venues/nearby?lat=14.7505&lng=-17.5128&radiusKm=2")
+echo "$NEARBY" | grep -q '"name":"Padel House Ngor"' || fail "Recherche à proximité (PostGIS) en échec : $NEARBY"
+echo "  ✓ recherche PostGIS : terrains à moins de 2 km de Ngor trouvés"
+
 step "3. Écriture refusée sans jeton (401)"
 CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$GATEWAY/api/v1/matches" -H 'Content-Type: application/json' -d '{}')
 [ "$CODE" = "401" ] || fail "Attendu 401, reçu $CODE"
@@ -97,10 +102,34 @@ step "11. Annulation (le créneau est libéré)"
 curl -fsS -X POST "$GATEWAY/api/v1/business/bookings/$BOOKING_ID/cancel" -H "Authorization: Bearer $AWA" | grep -q '"status":"CANCELLED"' \
   || fail "Annulation échouée"
 
-step "12. Services amorcés joignables via la gateway"
-for svc in events admin; do
+step "12. Tournoi : 3 équipes, tableau avec exemption, finale, champion"
+FATOU=$(token_for fatou.orga); IBOU=$(token_for ibou.business)
+TOURNAMENT=$(curl -fsS -X POST "$GATEWAY/api/v1/events/tournaments" -H "Authorization: Bearer $FATOU" -H 'Content-Type: application/json' \
+  -d '{"name":"Coupe de la Corniche","sport":"FOOTBALL","startsOn":"2031-07-01","maxTeams":4}')
+T_ID=$(echo "$TOURNAMENT" | sed -nE 's/^\{"tournament":\{"id":"([^"]+)".*/\1/p')
+[ -n "$T_ID" ] || fail "Création du tournoi échouée : $TOURNAMENT"
+for pair in "Lions de Ngor:$AWA" "Requins de Yoff:$MOUSSA" "Etoiles de Fann:$IBOU"; do
+  curl -fsS -X POST "$GATEWAY/api/v1/events/tournaments/$T_ID/teams" -H "Authorization: Bearer ${pair#*:}" \
+    -H 'Content-Type: application/json' -d "{\"name\":\"${pair%%:*}\"}" > /dev/null || fail "Inscription ${pair%%:*} échouée"
+done
+BRACKET=$(curl -fsS -X POST "$GATEWAY/api/v1/events/tournaments/$T_ID/start" -H "Authorization: Bearer $FATOU")
+ready_match() { echo "$1" | grep -oE '\{"id":"[^"]+","round":'"$2"',[^}]*"status":"READY"' | head -1 | sed -E 's/\{"id":"([^"]+)".*/\1/'; }
+SEMI=$(ready_match "$BRACKET" 1); [ -n "$SEMI" ] || fail "Aucun match de 1er tour prêt : $BRACKET"
+AFTER=$(curl -fsS -X POST "$GATEWAY/api/v1/events/tournaments/$T_ID/matches/$SEMI/result" -H "Authorization: Bearer $FATOU" \
+  -H 'Content-Type: application/json' -d '{"homeScore":2,"awayScore":1}')
+FINAL=$(ready_match "$AFTER" 2); [ -n "$FINAL" ] || fail "Finale non prête : $AFTER"
+DONE=$(curl -fsS -X POST "$GATEWAY/api/v1/events/tournaments/$T_ID/matches/$FINAL/result" -H "Authorization: Bearer $FATOU" \
+  -H 'Content-Type: application/json' -d '{"homeScore":0,"awayScore":3}')
+echo "$DONE" | grep -q '"status":"COMPLETED"' || fail "Tournoi non terminé : $DONE"
+echo "  ✓ champion : $(echo "$DONE" | sed -nE 's/.*"championName":"([^"]+)".*/\1/p')"
+team_notified() { curl -fsS "$GATEWAY/api/v1/notifications" -H "Authorization: Bearer $IBOU" | grep -q "Etoiles de Fann est inscrite"; }
+retry 30 2 team_notified || fail "Notification d'inscription d'équipe absente"
+echo "  ✓ capitaine notifié de l'inscription"
+
+step "13. Services amorcés joignables via la gateway"
+for svc in admin; do
   curl -fsS "$GATEWAY/api/v1/$svc/status" -H "Authorization: Bearer $AWA" | grep -q "sportmatch-$svc" || fail "$svc injoignable"
   echo "  ✓ sportmatch-$svc"
 done
 
-printf '\n\033[1;32m✅ Phase 2A validée : matchs, notifications, chat et réservations fonctionnent de bout en bout.\033[0m\n'
+printf '\n\033[1;32m✅ Phase 2B validée : matchs, proximité PostGIS, notifications, chat, réservations et tournois fonctionnent de bout en bout.\033[0m\n'

@@ -25,6 +25,12 @@ public class KafkaConfig {
     }
 
     @Bean
+    NewTopic tournamentTopic(@Value("${sportmatch.kafka.partitions:3}") int partitions,
+                             @Value("${sportmatch.kafka.replicas:1}") short replicas) {
+        return TopicBuilder.name(Topics.TOURNAMENT_V1).partitions(partitions).replicas(replicas).build();
+    }
+
+    @Bean
     NewTopic matchDeadLetterTopic(@Value("${sportmatch.kafka.partitions:3}") int partitions,
                                   @Value("${sportmatch.kafka.replicas:1}") short replicas) {
         return TopicBuilder.name(Topics.MATCH_V1 + Topics.DLT_SUFFIX).partitions(partitions).replicas(replicas).build();

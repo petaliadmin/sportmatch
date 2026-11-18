@@ -17,3 +17,7 @@ CREATE DATABASE sportmatch_notifications OWNER sm_notifications;
 
 CREATE USER sm_chat WITH PASSWORD 'sm_chat';
 CREATE DATABASE sportmatch_chat OWNER sm_chat;
+
+-- PostGIS pour la recherche de terrains à proximité (sportmatch-app)
+\c sportmatch_app
+CREATE EXTENSION IF NOT EXISTS postgis;

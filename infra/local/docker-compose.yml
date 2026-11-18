@@ -25,7 +25,7 @@ x-env: &env
 services:
   # ---------- Infrastructure ----------
   postgres:
-    image: postgres:16-alpine
+    image: postgis/postgis:16-3.4-alpine
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -38,6 +38,19 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  # Active PostGIS dans la base de sportmatch-app (superutilisateur requis). Idempotent :
+  # rattrape aussi les volumes créés avant l'ajout de PostGIS.
+  postgres-setup:
+    image: postgis/postgis:16-3.4-alpine
+    restart: "no"
+    environment:
+      PGPASSWORD: postgres
+    command: ["psql", "-h", "postgres", "-U", "postgres", "-d", "sportmatch_app", "-v", "ON_ERROR_STOP=1",
+              "-c", "CREATE EXTENSION IF NOT EXISTS postgis"]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   kafka:
     image: apache/kafka:3.9.0
@@ -133,6 +146,10 @@ services:
     ports: ["8081:8081"]
     environment:
       <<: *env
+    depends_on:
+      <<: *infra
+      postgres-setup:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health/readiness || exit 1"]
       interval: 10s
