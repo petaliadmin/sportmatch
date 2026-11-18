@@ -1,0 +1,142 @@
+{{- range $key, $svc := .Values.services }}
+{{- $name := printf "sportmatch-%s" $key }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "sportmatch.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+spec:
+  {{- if not $.Values.autoscaling.enabled }}
+  replicas: {{ $svc.replicas | default 1 }}
+  {{- end }}
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+  template:
+    metadata:
+      labels:
+        {{- include "sportmatch.labels" $ | nindent 8 }}
+        app.kubernetes.io/name: {{ $name }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: "{{ $svc.port }}"
+    spec:
+      # Pas de variables "docker links" (REDIS_PORT=tcp://…) qui écraseraient notre configuration.
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: {{ $key }}
+          image: {{ include "sportmatch.image" (list $ $name) }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ $svc.port }}
+          env:
+            {{- range $k, $v := $.Values.commonEnv }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+            {{- range $k, $v := ($svc.env | default dict) }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+            {{- if $svc.database }}
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef: { name: {{ printf "%s%s" $.Values.dbSecretPrefix $key }}, key: username }
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: {{ printf "%s%s" $.Values.dbSecretPrefix $key }}, key: password }
+            {{- end }}
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 20
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec: { command: ["sh", "-c", "sleep 5"] }
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "sportmatch.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+  {{- with $svc.serviceAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ $name }}
+  ports:
+    - name: http
+      port: {{ $svc.port }}
+      targetPort: http
+{{- if $.Values.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{ $name }} }
+  minReplicas: {{ $.Values.autoscaling.minReplicas }}
+  maxReplicas: {{ $.Values.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: {{ $.Values.autoscaling.targetCPUUtilizationPercentage }} }
+{{- end }}
+{{- if $.Values.podDisruptionBudget.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+spec:
+  minAvailable: {{ $.Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+{{- end }}
+{{- if $.Values.monitoring.serviceMonitor }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "sportmatch.labels" $ | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 30s
+{{- end }}
+{{- end }}

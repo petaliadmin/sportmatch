@@ -1,0 +1,46 @@
+{{- if .Values.web.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sportmatch-web
+  labels:
+    {{- include "sportmatch.labels" . | nindent 4 }}
+    app.kubernetes.io/name: sportmatch-web
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sportmatch-web
+  template:
+    metadata:
+      labels:
+        {{- include "sportmatch.labels" . | nindent 8 }}
+        app.kubernetes.io/name: sportmatch-web
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: web
+          image: {{ include "sportmatch.image" (list . "sportmatch-web") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet: { path: /, port: http }
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sportmatch-web
+  labels:
+    {{- include "sportmatch.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: sportmatch-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- end }}

@@ -8,3 +8,11 @@ next-env.d.ts
 backend/**/target/
 *.iml
 .idea/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl

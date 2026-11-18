@@ -1,0 +1,8 @@
+images:
+  postgres: postgis/postgis:16-3.4-alpine
+  kafka: apache/kafka:3.9.0
+  redis: redis:7-alpine
+  keycloak: quay.io/keycloak/keycloak:26.0
+  mailpit: axllent/mailpit:latest
+# Services disposant d'une base (un secret sportmatch-db-<service> chacun, mêmes identifiants qu'en local)
+databases: [app, events, business, admin, notifications, chat]

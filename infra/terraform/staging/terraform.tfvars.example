@@ -1,0 +1,7 @@
+# Copier en terraform.tfvars et ajuster.
+region             = "eu-west-3"
+environment        = "staging"
+node_capacity_type = "SPOT"
+node_min_size      = 2
+node_max_size      = 4
+kafka_mode         = "strimzi" # "msk" pour Kafka managé (~ +75 $/mois)

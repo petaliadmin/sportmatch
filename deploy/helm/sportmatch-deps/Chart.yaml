@@ -1,0 +1,6 @@
+apiVersion: v2
+name: sportmatch-deps
+description: Dépendances de DÉVELOPPEMENT pour la répétition sur kind (PostgreSQL+PostGIS, Kafka, Redis, Keycloak, Mailpit). Jamais en staging/production (services managés AWS).
+type: application
+version: 1.0.0
+appVersion: "dev"

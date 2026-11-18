@@ -1,0 +1,5 @@
+# Répétition générale sur un cluster kind (CI ou poste local) : images chargées localement.
+image:
+  registry: sportmatch
+  tag: local
+  pullPolicy: Never

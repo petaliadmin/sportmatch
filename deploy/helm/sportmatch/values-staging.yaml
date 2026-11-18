@@ -1,0 +1,56 @@
+# Staging EKS. Les valeurs <...> sont fournies par les sorties Terraform (voir docs/integration/PHASE-3-STAGING.md).
+image:
+  registry: docker.io/petaliadmin
+  tag: "<sha-du-commit>"          # posé par le pipeline : --set image.tag=$GITHUB_SHA
+  pullPolicy: IfNotPresent
+
+commonEnv:
+  JAVA_OPTS: "-XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError"
+  DB_HOST: "<rds_endpoint>"
+  DB_PORT: "5432"
+  KAFKA_BOOTSTRAP: "sportmatch-kafka-kafka-bootstrap.kafka:9092"   # Strimzi ; MSK : <msk_bootstrap_brokers>
+
+resources:
+  requests: { cpu: 200m, memory: 512Mi }
+  limits: { memory: 768Mi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+
+podDisruptionBudget:
+  enabled: true
+
+monitoring:
+  serviceMonitor: true
+
+services:
+  gateway:
+    serviceAnnotations:
+      alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/readiness
+    env:
+      KEYCLOAK_JWKS_URI: https://auth.staging.sportmatch.example/realms/sportmatch/protocol/openid-connect/certs
+      CORS_ALLOWED_ORIGINS: https://staging.sportmatch.example
+  notifications:
+    env:
+      MAIL_HOST: email-smtp.eu-west-3.amazonaws.com   # SES (sandbox en staging)
+      MAIL_PORT: "587"
+      MAIL_ENABLED: "false"
+  chat:
+    env:
+      REDIS_HOST: "<elasticache_endpoint>"
+
+web:
+  replicas: 2
+
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: "<acm_certificate_arn>"
+  apiHost: api.staging.sportmatch.example
+  webHost: staging.sportmatch.example

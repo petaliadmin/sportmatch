@@ -1,0 +1,71 @@
+# Validation de la plateforme : Terraform, charts Helm, et répétition générale du déploiement
+# Kubernetes sur kind (mêmes charts qu'en staging) suivie du test de bout en bout.
+name: platform-ci
+
+on:
+  push:
+    branches: [develop, production, "feature/**", "fix/**"]
+    paths: ["deploy/**", "infra/**", "backend/**", "src/**", "Dockerfile.web", ".github/workflows/platform-ci.yml"]
+  pull_request:
+    branches: [develop, production]
+  workflow_dispatch:
+
+concurrency:
+  group: platform-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform:
+    name: Terraform (fmt + validate)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform/staging
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+      - run: terraform fmt -check -diff -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate
+
+  helm:
+    name: Helm (lint + rendu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: azure/setup-helm@v4
+      - name: Le realm et l'init SQL du chart sont identiques à ceux du local
+        run: |
+          diff infra/local/keycloak/realm-sportmatch.json deploy/helm/sportmatch-deps/files/realm-sportmatch.json
+          diff infra/local/postgres/init-databases.sql deploy/helm/sportmatch-deps/files/init-databases.sql
+      - run: helm lint deploy/helm/sportmatch deploy/helm/sportmatch-deps
+      - run: helm lint deploy/helm/sportmatch -f deploy/helm/sportmatch/values-staging.yaml
+      - name: Rendu staging (HPA, PDB, Ingress ALB, ServiceMonitor)
+        run: |
+          helm template sportmatch deploy/helm/sportmatch -f deploy/helm/sportmatch/values-staging.yaml --set image.tag=ci > staging.yaml
+          grep -c "kind: Deployment" staging.yaml
+
+  kind-e2e:
+    name: Répétition sur Kubernetes (kind) + e2e
+    needs: [helm]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: azure/setup-helm@v4
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: sportmatch
+          wait: 180s
+      - name: Déploiement (images, dépendances, microservices)
+        run: bash deploy/kind/rehearsal.sh
+      - name: Test de bout en bout sur Kubernetes
+        run: bash infra/local/smoke-test.sh
+      - name: Diagnostic en cas d'échec
+        if: failure()
+        run: |
+          kubectl -n sportmatch get pods -o wide
+          kubectl -n sportmatch get events --sort-by=.lastTimestamp | tail -40
+          for d in $(kubectl -n sportmatch get deploy -o name); do echo "== $d"; kubectl -n sportmatch logs $d --tail=60 || true; done

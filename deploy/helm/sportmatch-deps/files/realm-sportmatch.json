@@ -1,0 +1,137 @@
+{
+  "realm": "sportmatch",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "accessTokenLifespan": 3600,
+  "roles": {
+    "realm": [
+      {
+        "name": "player"
+      },
+      {
+        "name": "organizer"
+      },
+      {
+        "name": "provider"
+      },
+      {
+        "name": "admin"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "sportmatch-web",
+      "name": "SportMatch Web (local)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost:3080/*",
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3080",
+        "http://localhost:3000"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:3080/*##http://localhost:3000/*",
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "awa.player",
+      "enabled": true,
+      "email": "awa.player@demo.sportmatch.test",
+      "emailVerified": true,
+      "firstName": "Awa",
+      "lastName": "Ndiaye",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo1234",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "player"
+      ]
+    },
+    {
+      "username": "moussa.player",
+      "enabled": true,
+      "email": "moussa.player@demo.sportmatch.test",
+      "emailVerified": true,
+      "firstName": "Moussa",
+      "lastName": "Diop",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo1234",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "player"
+      ]
+    },
+    {
+      "username": "fatou.orga",
+      "enabled": true,
+      "email": "fatou.orga@demo.sportmatch.test",
+      "emailVerified": true,
+      "firstName": "Fatou",
+      "lastName": "Sarr",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo1234",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "organizer"
+      ]
+    },
+    {
+      "username": "ibou.business",
+      "enabled": true,
+      "email": "ibou.business@demo.sportmatch.test",
+      "emailVerified": true,
+      "firstName": "Ibrahima",
+      "lastName": "Fall",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo1234",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "provider"
+      ]
+    },
+    {
+      "username": "admin.sportmatch",
+      "enabled": true,
+      "email": "admin.sportmatch@demo.sportmatch.test",
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "SportMatch",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo1234",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ]
+    }
+  ]
+}
