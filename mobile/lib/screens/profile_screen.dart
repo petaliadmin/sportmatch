@@ -99,10 +99,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   await scope.api.markAllRead();
                   return true;
                 });
-                if (r != null) {
-                  setState(() => _version++);
-                  UnreadBadge.refresh(context);
-                }
+                if (r == null || !context.mounted) return;
+                setState(() => _version++);
+                UnreadBadge.refresh(context);
               },
               child: const Text('Tout marquer lu')),
         ),
