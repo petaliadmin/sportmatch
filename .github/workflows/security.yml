@@ -4,7 +4,7 @@ name: security
 # analyse statique du code Java et TypeScript (CodeQL). Résultats dans l'onglet Security.
 on:
   push:
-    branches: [develop, production]
+    branches: [develop, production, "feature/**"]
   pull_request:
   schedule:
     - cron: "17 3 * * 1"
