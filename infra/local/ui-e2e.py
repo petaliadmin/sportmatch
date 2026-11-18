@@ -87,12 +87,12 @@ async def main():
             assert conv, "Conversation du match introuvable"
             text = "Message temps réel depuis le test UI"
             http("POST", f"{GATEWAY}/api/v1/chat/conversations/{conv}/messages", token=awa, body={"body": text})
-            await expect(page.get_by_text(text)).to_be_visible(timeout=10000)
+            await expect(page.get_by_text(text).last).to_be_visible(timeout=10000)
 
             step("6. Envoi depuis l'interface")
             await page.get_by_label("Message").fill("Rendez-vous 18h45 devant l'entrée")
             await page.get_by_role("button", name="Envoyer").click()
-            await expect(page.get_by_text("Rendez-vous 18h45 devant l'entrée")).to_be_visible(timeout=10000)
+            await expect(page.get_by_text("Rendez-vous 18h45 devant l'entrée").last).to_be_visible(timeout=10000)
             await page.screenshot(path=f"{SHOTS}/chat.png")
 
             if errors:
