@@ -127,7 +127,7 @@ retry 30 2 team_notified || fail "Notification d'inscription d'équipe absente"
 echo "  ✓ capitaine notifié de l'inscription"
 
 step "13. Front web (Next.js) servi et branché sur l'API"
-WEB="${WEB:-http://localhost:3000}"
+WEB="${WEB:-http://localhost:3080}"
 retry 20 3 curl -fsS "$WEB/" -o /dev/null || fail "Front web injoignable"
 curl -fsS "$WEB/" | grep -q "SportMatch" || fail "Page d'accueil inattendue"
 echo "  ✓ $WEB (espace Bêta live : $WEB/#live)"

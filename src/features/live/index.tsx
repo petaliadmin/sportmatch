@@ -85,7 +85,7 @@ function NotConfigured() {
       <p className="font-display text-lg font-bold">La bêta live n'est pas branchée ici</p>
       <p className="text-sm text-muted">
         Cette version publique est le prototype à données fictives. La bêta live fonctionne avec l'environnement local :
-        lance <code>make up</code> (ou <code>sportmatch-launch.bat</code> sous Windows), puis ouvre <code>http://localhost:3000/#live</code>.
+        lance <code>make up</code> (ou <code>sportmatch-launch.bat</code> sous Windows), puis ouvre <code>http://localhost:3080/#live</code>.
       </p>
       <p className="text-xs text-muted">API attendue : {API_URL || "NEXT_PUBLIC_API_URL non défini"}</p>
     </Card>

@@ -100,7 +100,7 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_HEALTH_ENABLED: "true"
       # Incrémenter pour forcer la recréation du conteneur et la réimport du realm (base H2 éphémère).
-      SPORTMATCH_REALM_VERSION: "2"
+      SPORTMATCH_REALM_VERSION: "3"
     ports: ["8180:8080"]
     volumes:
       - ./keycloak/realm-sportmatch.json:/opt/keycloak/data/import/realm-sportmatch.json:ro
@@ -136,6 +136,7 @@ services:
       ADMIN_URI: http://sportmatch-admin:8084
       NOTIFICATIONS_URI: http://sportmatch-notifications:8085
       CHAT_URI: http://sportmatch-chat:8086
+      CORS_ALLOWED_ORIGINS: http://localhost:3080,http://localhost:3000
     depends_on:
       sportmatch-app:
         condition: service_healthy
@@ -260,7 +261,8 @@ services:
       dockerfile: Dockerfile.web
     image: sportmatch/sportmatch-web:local
     restart: unless-stopped
-    ports: ["3000:80"]
+    # 3080 plutôt que 3000, souvent pris par un serveur de développement (npm run dev).
+    ports: ["${SPORTMATCH_WEB_PORT:-3080}:80"]
 
   # ---------- Observabilité (profil optionnel) ----------
   prometheus:

@@ -2,7 +2,7 @@
 
 > Suite de la [phase 2A](PHASE-2A.md). Démarrage inchangé : `make up` puis `make smoke`
 > (ou double-clic sur `sportmatch-launch.bat` sous Windows).
-> **Nouveau :** l'interface tourne aussi en local → **http://localhost:3000/#live**
+> **Nouveau :** l'interface tourne aussi en local → **http://localhost:3080/#live**
 
 ## 1. Ce qui est livré
 
@@ -12,14 +12,14 @@
 | **sportmatch-app + PostGIS** | Localisation des terrains (`geography`, index GiST), `GET /api/v1/venues/nearby?lat&lng&radiusKm&sport` trié par distance |
 | **sportmatch-notifications** | Inscription d'équipe (capitaine), fin de tournoi (organisateur) |
 | **Front « Bêta live »** | Connexion Keycloak (OIDC + PKCE), terrains à proximité avec géolocalisation, réservation de créneaux, matchs (création, inscription), mes réservations, tournois (tableau, scores), chat temps réel WebSocket, notifications |
-| **Infra locale** | Image PostGIS, conteneur `postgres-setup` (active PostGIS même sur un volume existant), conteneur `web` (nginx, port 3000) |
+| **Infra locale** | Image PostGIS, conteneur `postgres-setup` (active PostGIS même sur un volume existant), conteneur `web` (nginx, port 3080) |
 | **CI** | Test d'interface Playwright : connexion PKCE réelle, données réelles, réception d'un message par WebSocket |
 
 Le prototype statique (Vercel) est inchangé : sans `NEXT_PUBLIC_API_URL`, l'espace Bêta live affiche une explication au lieu d'appeler l'API.
 
 ## 2. Essayer l'interface
 
-1. Ouvrir http://localhost:3000 puis la carte **« Bêta live · API réelle »**.
+1. Ouvrir http://localhost:3080 puis la carte **« Bêta live · API réelle »**.
 2. Onglet **Terrains** : « Me localiser » (ou Dakar Plateau par défaut), choisir un rayon, ouvrir un terrain, réserver un créneau.
 3. **Se connecter** : `awa.player` / `demo1234`.
 4. Onglet **Matchs** → « Créer un match », puis « Chat du match ».

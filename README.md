@@ -16,7 +16,7 @@ Prototype interactif de la plateforme SportMatch (ville pilote : Dakar). 4 espac
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000
+npm run dev        # http://localhost:3080
 npm run build      # export statique dans out/
 npm run typecheck
 ```
@@ -41,4 +41,4 @@ make smoke   # parcours de bout en bout
 ```
 
 Guides : [phase 1](docs/integration/PHASE-1-LOCAL.md) · [phase 2A](docs/integration/PHASE-2A.md) · [phase 2B](docs/integration/PHASE-2B.md).
-Interface branchée sur l'API : http://localhost:3000/#live
+Interface branchée sur l'API : http://localhost:3080/#live

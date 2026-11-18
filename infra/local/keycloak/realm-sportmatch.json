@@ -29,13 +29,15 @@
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
       "redirectUris": [
+        "http://localhost:3080/*",
         "http://localhost:3000/*"
       ],
       "webOrigins": [
+        "http://localhost:3080",
         "http://localhost:3000"
       ],
       "attributes": {
-        "post.logout.redirect.uris": "http://localhost:3000/*",
+        "post.logout.redirect.uris": "http://localhost:3080/*##http://localhost:3000/*",
         "pkce.code.challenge.method": "S256"
       }
     }

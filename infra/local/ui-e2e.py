@@ -14,7 +14,7 @@ import urllib.request
 
 from playwright.async_api import async_playwright, expect
 
-WEB = os.environ.get("WEB", "http://localhost:3000")
+WEB = os.environ.get("WEB", "http://localhost:3080")
 GATEWAY = os.environ.get("GATEWAY", "http://localhost:8080")
 KEYCLOAK = os.environ.get("KEYCLOAK", "http://localhost:8180")
 SHOTS = os.environ.get("SHOTS", "ui-e2e-screens")
