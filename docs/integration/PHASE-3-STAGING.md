@@ -10,7 +10,7 @@
 | Chart Helm des 7 microservices et du front | `deploy/helm/sportmatch` | `helm lint` + rendu staging + **déploiement réel sur kind** |
 | Chart des dépendances de dev (PostGIS, Kafka, Redis, Keycloak, Mailpit) | `deploy/helm/sportmatch-deps` | déploiement réel sur kind |
 | Répétition générale Kubernetes | `deploy/kind/rehearsal.sh` (`make kind`) | **test de bout en bout complet (14 étapes) sur Kubernetes** |
-| Infrastructure AWS staging | `infra/terraform/staging` | `terraform fmt` + `terraform validate` |
+| Infrastructure AWS staging | `infra/terraform/envs/staging` | `terraform fmt` + `terraform validate` |
 | Amorçage des bases RDS, secrets, Kafka Strimzi | `deploy/staging/` | syntaxe YAML / bash |
 | Livraison continue | `.github/workflows/deploy-staging.yml` | inactive tant que les variables ne sont pas posées |
 
@@ -43,8 +43,8 @@ make kind-down     # supprime le cluster
 ### 3.2 Infrastructure (≈ 20 min)
 
 ```bash
-cd infra/terraform/staging
-cp terraform.tfvars.example terraform.tfvars   # ajuster si besoin (kafka_mode, tailles)
+cd infra/terraform/envs/staging
+# réglages de l'environnement : main.tf (kafka_mode, tailles…)
 terraform init
 terraform plan -out staging.plan               # relire le plan avant d'appliquer
 terraform apply staging.plan

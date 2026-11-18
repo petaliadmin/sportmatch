@@ -26,6 +26,7 @@ podDisruptionBudget:
 
 monitoring:
   serviceMonitor: true
+  alerts: true
 
 services:
   gateway:

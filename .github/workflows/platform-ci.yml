@@ -16,17 +16,20 @@ concurrency:
 
 jobs:
   terraform:
-    name: Terraform (fmt + validate)
+    name: Terraform ${{ matrix.env }} (fmt + validate)
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [staging, production]
     defaults:
       run:
-        working-directory: infra/terraform/staging
+        working-directory: infra/terraform/envs/${{ matrix.env }}
     steps:
       - uses: actions/checkout@v5
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.9.8"
-      - run: terraform fmt -check -diff -recursive
+      - run: terraform fmt -check -diff -recursive ../..
       - run: terraform init -backend=false -input=false
       - run: terraform validate
 
@@ -42,10 +45,13 @@ jobs:
           diff infra/local/postgres/init-databases.sql deploy/helm/sportmatch-deps/files/init-databases.sql
       - run: helm lint deploy/helm/sportmatch deploy/helm/sportmatch-deps
       - run: helm lint deploy/helm/sportmatch -f deploy/helm/sportmatch/values-staging.yaml
+      - run: helm lint deploy/helm/sportmatch -f deploy/helm/sportmatch/values-production.yaml
       - name: Rendu staging (HPA, PDB, Ingress ALB, ServiceMonitor)
         run: |
           helm template sportmatch deploy/helm/sportmatch -f deploy/helm/sportmatch/values-staging.yaml --set image.tag=ci > staging.yaml
           grep -c "kind: Deployment" staging.yaml
+          helm template sportmatch deploy/helm/sportmatch -f deploy/helm/sportmatch/values-production.yaml --set image.tag=v1.0.0-beta.1 > production.yaml
+          grep -q "kind: PrometheusRule" production.yaml && grep -q "minReplicas: 3" production.yaml
 
   kind-e2e:
     name: Répétition sur Kubernetes (kind) + e2e
@@ -64,6 +70,17 @@ jobs:
         run: |
           bash deploy/kind/rehearsal.sh
           bash infra/local/smoke-test.sh
+          echo "::group::Test de charge k6 (profil ci)"
+          chmod a+w infra/load
+          docker run --rm --network host -v "$PWD/infra/load:/load" -e PROFILE=ci grafana/k6:latest \
+            run --summary-export /load/k6-summary.json /load/load-test.js
+          echo "::endgroup::"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-summary
+          path: infra/load/k6-summary.json
+          if-no-files-found: ignore
       - name: Diagnostic en cas d'échec
         if: failure()
         run: |

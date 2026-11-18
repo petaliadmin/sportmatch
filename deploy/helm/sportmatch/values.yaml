@@ -33,6 +33,12 @@ podDisruptionBudget:
 
 monitoring:
   serviceMonitor: false      # nécessite kube-prometheus-stack (CRD ServiceMonitor)
+  alerts: false              # PrometheusRule (même prérequis)
+  thresholds:
+    errorRatio: 0.02         # 2 % de réponses 5xx
+    p95Seconds: 1
+    outboxBacklog: 100
+    consumerLag: 1000
 
 services:
   gateway:

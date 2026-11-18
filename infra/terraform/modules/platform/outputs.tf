@@ -18,7 +18,7 @@ output "rds_master_secret_arn" {
 
 output "redis_endpoint" {
   description = "À reporter dans values-staging.yaml (services.chat.env.REDIS_HOST)"
-  value       = aws_elasticache_cluster.redis.cache_nodes[0].address
+  value       = aws_elasticache_replication_group.redis.primary_endpoint_address
 }
 
 output "kafka_bootstrap" {

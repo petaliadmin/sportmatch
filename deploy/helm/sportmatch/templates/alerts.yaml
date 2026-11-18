@@ -1,0 +1,55 @@
+{{- if .Values.monitoring.alerts }}
+# Alertes de base (kube-prometheus-stack). Seuils ajustables dans values-<env>.yaml : monitoring.thresholds.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sportmatch
+  labels:
+    {{- include "sportmatch.labels" . | nindent 4 }}
+    release: monitoring
+spec:
+  groups:
+    - name: sportmatch.disponibilite
+      rules:
+        - alert: GatewayErreurs5xx
+          expr: |
+            sum(rate(http_server_requests_seconds_count{application="sportmatch-gateway", status=~"5.."}[5m]))
+              / clamp_min(sum(rate(http_server_requests_seconds_count{application="sportmatch-gateway"}[5m])), 1e-9)
+              > {{ .Values.monitoring.thresholds.errorRatio }}
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "Plus de {{ mulf .Values.monitoring.thresholds.errorRatio 100 }} % d'erreurs 5xx sur la gateway"
+            runbook: "docs/operations/RUNBOOK.md, section « Erreurs 5xx »"
+        - alert: LatenceP95Elevee
+          expr: |
+            histogram_quantile(0.95, sum by (le, application) (rate(http_server_requests_seconds_bucket{application=~"sportmatch-.*"}[5m])))
+              > {{ .Values.monitoring.thresholds.p95Seconds }}
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "Latence p95 de {{ "{{" }} $labels.application {{ "}}" }} au-dessus de {{ .Values.monitoring.thresholds.p95Seconds }} s"
+            runbook: "docs/operations/RUNBOOK.md, section « Latence élevée »"
+        - alert: PodQuiRedemarre
+          expr: increase(kube_pod_container_status_restarts_total{namespace="{{ .Release.Namespace }}", container!~"kafka|postgres"}[15m]) > 2
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ "{{" }} $labels.pod {{ "}}" }} redémarre en boucle"
+            runbook: "docs/operations/RUNBOOK.md, section « Pod en échec »"
+    - name: sportmatch.messaging
+      rules:
+        - alert: OutboxEnRetard
+          expr: max by (application) (sportmatch_outbox_pending) > {{ .Values.monitoring.thresholds.outboxBacklog }}
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "{{ "{{" }} $labels.application {{ "}}" }} n'arrive plus à publier sur Kafka ({{ "{{" }} $value {{ "}}" }} événements en attente)"
+            runbook: "docs/operations/RUNBOOK.md, section « Kafka indisponible / outbox en retard »"
+        - alert: ConsommateurKafkaEnRetard
+          expr: max by (application) (kafka_consumer_fetch_manager_records_lag_max{application=~"sportmatch-.*"}) > {{ .Values.monitoring.thresholds.consumerLag }}
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ "{{" }} $labels.application {{ "}}" }} accumule du retard de consommation Kafka"
+            runbook: "docs/operations/RUNBOOK.md, section « Retard consommateur / messages en DLQ »"
+{{- end }}

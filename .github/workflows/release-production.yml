@@ -1,0 +1,132 @@
+# Mise en production d'une version bêta.
+#   1. La branche production est avancée (fast-forward) sur un commit de develop déjà validé en staging.
+#   2. Un tag vX.Y.Z[-beta.N] est posé sur ce commit :  git tag v1.0.0-beta.1 && git push origin v1.0.0-beta.1
+# Le pipeline vérifie l'origine du commit, promeut les images DÉJÀ testées (même digest, aucune reconstruction),
+# publie les notes de version, puis déploie après approbation manuelle (environnement GitHub "production").
+name: release-production
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write   # création de la release GitHub
+  id-token: write   # OIDC GitHub → AWS
+
+concurrency:
+  group: release-production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Vérifications
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: v
+        name: Version SemVer et commit présent sur la branche production
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          echo "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.[0-9]+)?$' \
+            || { echo "::error::Tag non conforme SemVer : $VERSION"; exit 1; }
+          git branch -r --contains "$GITHUB_SHA" | grep -q "origin/production" \
+            || { echo "::error::Le commit $GITHUB_SHA n'est pas sur la branche production"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          [[ "$VERSION" == *-* ]] && echo "prerelease=true" >> "$GITHUB_OUTPUT" || echo "prerelease=false" >> "$GITHUB_OUTPUT"
+      - name: Les trois niveaux de tests sont verts pour ce commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for wf in backend-ci platform-ci; do
+            ok=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${wf}.yml/runs?head_sha=${GITHUB_SHA}&status=success" --jq '.total_count')
+            [ "$ok" -gt 0 ] || { echo "::error::$wf n'a pas de run vert pour $GITHUB_SHA"; exit 1; }
+            echo "✓ $wf vert"
+          done
+
+  promote:
+    name: Promotion des images (même digest)
+    needs: verify
+    if: ${{ vars.DOCKERHUB_NAMESPACE != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - name: sha → version
+        run: |
+          NS="${{ vars.DOCKERHUB_NAMESPACE }}"; V="${{ needs.verify.outputs.version }}"
+          echo "| Image | Digest |" >> "$GITHUB_STEP_SUMMARY"; echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          for s in gateway app events business admin notifications chat web; do
+            src="$NS/sportmatch-$s:$GITHUB_SHA"
+            docker buildx imagetools inspect "$src" > /dev/null \
+              || { echo "::error::$src introuvable : ce commit n'a pas été publié par deploy-staging"; exit 1; }
+            docker buildx imagetools create -t "$NS/sportmatch-$s:$V" "$src"
+            digest=$(docker buildx imagetools inspect "$NS/sportmatch-$s:$V" --format '{{ .Manifest.Digest }}')
+            echo "| sportmatch-$s:$V | \`$digest\` |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+  release-notes:
+    name: Notes de version
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Notes générées depuis les Conventional Commits
+        run: |
+          PREV=$(git describe --tags --abbrev=0 "${GITHUB_SHA}^" 2>/dev/null || git rev-list --max-parents=0 HEAD)
+          section() { local t=$(git log "$PREV..$GITHUB_SHA" --pretty='- %s (%h)' | grep -E "^- $1(\(|:)" | sed -E "s/^- $1(\([^)]*\))?: /- /"); [ -n "$t" ] && printf '\n### %s\n%s\n' "$2" "$t" || true; }
+          {
+            echo "## SportMatch ${GITHUB_REF_NAME}"
+            echo
+            echo "Depuis \`${PREV:0:12}\`."
+            section feat "Nouveautés"
+            section fix "Corrections"
+            section perf "Performances"
+            section docs "Documentation"
+            section '(ci|build|chore|test)' "Outillage"
+          } > notes.md
+          cat notes.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Release GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=""; [ "${{ needs.verify.outputs.prerelease }}" = "true" ] && flags="--prerelease"
+          gh release create "$GITHUB_REF_NAME" --title "SportMatch $GITHUB_REF_NAME" --notes-file notes.md $flags --verify-tag
+
+  deploy:
+    name: Déploiement production (approbation manuelle)
+    needs: [verify, promote]
+    if: ${{ vars.PRODUCTION_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    environment: production   # à configurer avec des « required reviewers » dans Settings → Environments
+    steps:
+      - uses: actions/checkout@v5
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PRODUCTION_ROLE_ARN }}
+          aws-region: eu-west-3
+      - uses: azure/setup-helm@v4
+      - run: aws eks update-kubeconfig --region eu-west-3 --name sportmatch-production
+      - name: Version actuelle (pour le retour arrière)
+        run: helm history sportmatch -n sportmatch --max 5 || true
+      - name: helm upgrade --atomic
+        run: |
+          helm upgrade --install sportmatch deploy/helm/sportmatch -n sportmatch --create-namespace \
+            -f deploy/helm/sportmatch/values-production.yaml \
+            --set image.registry=docker.io/${{ vars.DOCKERHUB_NAMESPACE }} \
+            --set-string image.tag=${{ needs.verify.outputs.version }} \
+            --set-string commonEnv.DB_HOST=${{ vars.PRODUCTION_RDS_ENDPOINT }} \
+            --set-string commonEnv.KAFKA_BOOTSTRAP=${{ vars.PRODUCTION_KAFKA_BOOTSTRAP }} \
+            --set-string services.chat.env.REDIS_HOST=${{ vars.PRODUCTION_REDIS_ENDPOINT }} \
+            --atomic --wait --timeout 20m
+      - name: Vérification de santé
+        run: curl -fsS --retry 10 --retry-delay 10 "${{ vars.PRODUCTION_API_URL }}/actuator/health/readiness"

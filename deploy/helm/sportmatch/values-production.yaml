@@ -1,0 +1,69 @@
+# Production bêta (EKS, 3 AZ). Valeurs <...> : sorties Terraform de infra/terraform/envs/production.
+# Les images ne sont jamais reconstruites : le pipeline de release promeut le digest validé en staging.
+image:
+  registry: docker.io/petaliadmin
+  tag: "<version>"               # posé par le pipeline : --set image.tag=v1.0.0-beta.N
+  pullPolicy: IfNotPresent
+
+commonEnv:
+  JAVA_OPTS: "-XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError"
+  DB_HOST: "<rds_endpoint>"
+  DB_PORT: "5432"
+  KAFKA_BOOTSTRAP: "<msk_bootstrap_brokers>"
+  SPORTMATCH_KAFKA_REPLICAS: "3"
+  SPRING_LIQUIBASE_CONTEXTS: prod   # aucune donnée de démonstration en production
+
+resources:
+  requests: { cpu: 300m, memory: 640Mi }
+  limits: { memory: 1Gi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 3                    # un pod par AZ
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 65
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+monitoring:
+  serviceMonitor: true
+  alerts: true
+  thresholds:
+    errorRatio: 0.01
+    p95Seconds: 0.8
+    outboxBacklog: 50
+    consumerLag: 500
+
+services:
+  gateway:
+    serviceAnnotations:
+      alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/readiness
+    env:
+      KEYCLOAK_JWKS_URI: https://auth.sportmatch.example/realms/sportmatch/protocol/openid-connect/certs
+      CORS_ALLOWED_ORIGINS: https://sportmatch.example,https://app.sportmatch.example
+  notifications:
+    env:
+      MAIL_HOST: email-smtp.eu-west-3.amazonaws.com
+      MAIL_PORT: "587"
+      MAIL_ENABLED: "true"
+  chat:
+    env:
+      REDIS_HOST: "<redis_endpoint>"
+
+web:
+  replicas: 3
+
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: "<acm_certificate_arn>"
+    alb.ingress.kubernetes.io/wafv2-acl-arn: "<waf_acl_arn>"
+  apiHost: api.sportmatch.example
+  webHost: sportmatch.example

@@ -1,6 +1,8 @@
 package com.sportmatch.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.binder.MeterBinder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -39,6 +41,24 @@ public class MessagingAutoConfiguration {
     @ConditionalOnProperty(name = "sportmatch.outbox.enabled", havingValue = "true", matchIfMissing = true)
     OutboxPublisher outboxPublisher(JdbcClient jdbc, KafkaTemplate<String, String> kafka) {
         return new OutboxPublisher(jdbc, kafka);
+    }
+
+    /**
+     * Jauge sportmatch_outbox_pending : événements écrits mais pas encore publiés sur Kafka.
+     * Une valeur qui grossit signale un Kafka indisponible (alerte OutboxBacklog).
+     */
+    @Bean
+    @ConditionalOnProperty(name = "sportmatch.outbox.enabled", havingValue = "true", matchIfMissing = true)
+    MeterBinder outboxPendingGauge(JdbcClient jdbc) {
+        return registry -> Gauge.builder("sportmatch.outbox.pending", () -> {
+                    try {
+                        return jdbc.sql("select count(*) from outbox_event where published_at is null").query(Long.class).single();
+                    } catch (RuntimeException e) {
+                        return Double.NaN;
+                    }
+                })
+                .description("Événements outbox en attente de publication Kafka")
+                .register(registry);
     }
 
     @Bean

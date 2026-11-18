@@ -4,7 +4,7 @@ data "aws_availability_zones" "available" {
 
 locals {
   name = "sportmatch-${var.environment}"
-  azs  = slice(data.aws_availability_zones.available.names, 0, 2)
+  azs  = slice(data.aws_availability_zones.available.names, 0, var.az_count)
 }
 
 # ---------------------------------------------------------------- Réseau
@@ -21,7 +21,8 @@ module "vpc" {
   database_subnets = [for i, _ in local.azs : cidrsubnet(var.vpc_cidr, 8, 64 + i)]
 
   enable_nat_gateway           = true
-  single_nat_gateway           = true # staging : une seule NAT (~37 $/mois) ; production : une par AZ
+  single_nat_gateway           = var.single_nat_gateway
+  one_nat_gateway_per_az       = !var.single_nat_gateway
   enable_dns_hostnames         = true
   create_database_subnet_group = true
 
@@ -147,8 +148,8 @@ module "rds" {
   major_engine_version = "16"
   instance_class       = var.rds_instance_class
 
-  allocated_storage     = 50
-  max_allocated_storage = 100
+  allocated_storage     = var.rds_allocated_storage
+  max_allocated_storage = var.rds_allocated_storage * 2
   storage_encrypted     = true
 
   db_name  = "sportmatch"
@@ -162,9 +163,10 @@ module "rds" {
   db_subnet_group_name   = module.vpc.database_subnet_group_name
   vpc_security_group_ids = [aws_security_group.rds.id]
 
-  backup_retention_period = 7
-  deletion_protection     = false # staging ; true en production
-  skip_final_snapshot     = true
+  backup_retention_period          = var.rds_backup_retention_days
+  deletion_protection              = var.rds_deletion_protection
+  skip_final_snapshot              = !var.rds_deletion_protection
+  final_snapshot_identifier_prefix = "${local.name}-final"
 
   performance_insights_enabled = true
 }
@@ -212,15 +214,19 @@ resource "aws_elasticache_subnet_group" "redis" {
   subnet_ids = module.vpc.private_subnets
 }
 
-resource "aws_elasticache_cluster" "redis" {
-  cluster_id         = "${local.name}-redis"
-  engine             = "redis"
-  engine_version     = "7.1"
-  node_type          = "cache.t4g.micro"
-  num_cache_nodes    = 1
-  port               = 6379
-  subnet_group_name  = aws_elasticache_subnet_group.redis.name
-  security_group_ids = [aws_security_group.redis.id]
+resource "aws_elasticache_replication_group" "redis" {
+  replication_group_id       = "${local.name}-redis"
+  description                = "Redis SportMatch (chat temps reel)"
+  engine                     = "redis"
+  engine_version             = "7.1"
+  node_type                  = var.redis_node_type
+  num_cache_clusters         = var.redis_nodes
+  automatic_failover_enabled = var.redis_nodes > 1
+  multi_az_enabled           = var.redis_nodes > 1
+  port                       = 6379
+  subnet_group_name          = aws_elasticache_subnet_group.redis.name
+  security_group_ids         = [aws_security_group.redis.id]
+  at_rest_encryption_enabled = true
 }
 
 # ---------------------------------------------------------------- Kafka managé (option)
@@ -245,7 +251,7 @@ resource "aws_msk_cluster" "kafka" {
   number_of_broker_nodes = length(local.azs)
 
   broker_node_group_info {
-    instance_type   = "kafka.t3.small"
+    instance_type   = var.msk_instance_type
     client_subnets  = module.vpc.private_subnets
     security_groups = [aws_security_group.msk[0].id]
 
@@ -266,7 +272,7 @@ resource "aws_msk_cluster" "kafka" {
 # ---------------------------------------------------------------- Médias (photos de terrains)
 resource "aws_s3_bucket" "media" {
   bucket_prefix = "${local.name}-media-"
-  force_destroy = true
+  force_destroy = var.environment != "production"
 }
 
 resource "aws_s3_bucket_public_access_block" "media" {

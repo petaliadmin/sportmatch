@@ -5,8 +5,8 @@ variable "region" {
 }
 
 variable "environment" {
-  type    = string
-  default = "staging"
+  description = "staging ou production"
+  type        = string
 }
 
 variable "vpc_cidr" {
@@ -68,4 +68,47 @@ variable "services_with_database" {
   description = "Une base et un utilisateur PostgreSQL par microservice"
   type        = list(string)
   default     = ["app", "events", "business", "admin", "notifications", "chat"]
+}
+
+variable "az_count" {
+  description = "Nombre de zones de disponibilité (2 en staging, 3 en production)"
+  type        = number
+  default     = 2
+}
+
+variable "single_nat_gateway" {
+  description = "true : une NAT partagée (staging) ; false : une NAT par AZ (production)"
+  type        = bool
+  default     = true
+}
+
+variable "rds_deletion_protection" {
+  type    = bool
+  default = false
+}
+
+variable "rds_backup_retention_days" {
+  type    = number
+  default = 7
+}
+
+variable "rds_allocated_storage" {
+  type    = number
+  default = 50
+}
+
+variable "redis_node_type" {
+  type    = string
+  default = "cache.t4g.micro"
+}
+
+variable "redis_nodes" {
+  description = "1 en staging ; 2+ en production (réplica + bascule automatique)"
+  type        = number
+  default     = 1
+}
+
+variable "msk_instance_type" {
+  type    = string
+  default = "kafka.t3.small"
 }

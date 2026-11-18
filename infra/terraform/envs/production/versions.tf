@@ -6,10 +6,10 @@ terraform {
     random = { source = "hashicorp/random", version = "~> 3.6" }
   }
 
-  # État distant partagé (à créer une fois : bucket S3 versionné + table DynamoDB de verrouillage).
+  # Etat distant (bucket S3 versionne + table DynamoDB de verrouillage, crees une fois).
   # backend "s3" {
   #   bucket         = "sportmatch-terraform-state"
-  #   key            = "staging/terraform.tfstate"
+  #   key            = "production/terraform.tfstate"
   #   region         = "eu-west-3"
   #   dynamodb_table = "sportmatch-terraform-locks"
   #   encrypt        = true
@@ -22,8 +22,13 @@ provider "aws" {
   default_tags {
     tags = {
       Project     = "sportmatch"
-      Environment = var.environment
+      Environment = "production"
       ManagedBy   = "terraform"
     }
   }
+}
+
+variable "region" {
+  type    = string
+  default = "eu-west-3"
 }
