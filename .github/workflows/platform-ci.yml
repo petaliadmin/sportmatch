@@ -59,10 +59,11 @@ jobs:
         with:
           cluster_name: sportmatch
           wait: 180s
-      - name: Déploiement (images, dépendances, microservices)
-        run: bash deploy/kind/rehearsal.sh
-      - name: Test de bout en bout sur Kubernetes
-        run: bash infra/local/smoke-test.sh
+      # Une seule étape : GitHub Actions arrête les processus d'arrière-plan (port-forward) en fin d'étape.
+      - name: Déploiement (images, dépendances, microservices) puis test de bout en bout
+        run: |
+          bash deploy/kind/rehearsal.sh
+          bash infra/local/smoke-test.sh
       - name: Diagnostic en cas d'échec
         if: failure()
         run: |
