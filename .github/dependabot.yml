@@ -1,0 +1,33 @@
+# Mises à jour hebdomadaires des dépendances (PR ouvertes vers develop).
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /backend
+    target-branch: develop
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      spring: { patterns: ["org.springframework*", "io.micrometer*"] }
+  - package-ecosystem: npm
+    directory: /
+    target-branch: develop
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      next-react: { patterns: ["next", "react", "react-dom", "@types/react*"] }
+  - package-ecosystem: pub
+    directory: /mobile
+    target-branch: develop
+    schedule: { interval: weekly, day: monday }
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule: { interval: weekly, day: monday }
+  - package-ecosystem: docker
+    directory: /backend
+    target-branch: develop
+    schedule: { interval: weekly, day: monday }
+  - package-ecosystem: terraform
+    directory: /infra/terraform/envs/staging
+    target-branch: develop
+    schedule: { interval: weekly, day: monday }

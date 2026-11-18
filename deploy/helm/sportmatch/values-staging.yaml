@@ -34,6 +34,7 @@ services:
       alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/readiness
     env:
       KEYCLOAK_JWKS_URI: https://auth.staging.sportmatch.example/realms/sportmatch/protocol/openid-connect/certs
+      REDIS_HOST: "<elasticache_endpoint>"
       CORS_ALLOWED_ORIGINS: https://staging.sportmatch.example
   notifications:
     env:

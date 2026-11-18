@@ -78,6 +78,7 @@ jobs:
             --set-string image.tag=${{ github.event.workflow_run.head_sha || github.sha }} \
             --set-string commonEnv.DB_HOST=${{ vars.STAGING_RDS_ENDPOINT }} \
             --set-string services.chat.env.REDIS_HOST=${{ vars.STAGING_REDIS_ENDPOINT }} \
+            --set-string services.gateway.env.REDIS_HOST=${{ vars.STAGING_REDIS_ENDPOINT }} \
             --atomic --wait --timeout 15m
       - name: Vérification
         run: curl -fsS --retry 10 --retry-delay 10 "${{ vars.STAGING_API_URL }}/actuator/health/readiness"

@@ -33,4 +33,12 @@ class MatchRulesTest {
         assertThat(MatchRules.statusAfterJoin(9, 10)).isEqualTo(MatchRules.OPEN);
         assertThat(MatchRules.statusAfterJoin(10, 10)).isEqualTo(MatchRules.FULL);
     }
+
+    @Test
+    void seulsLOrganisateurEtLaModerationPeuventAnnuler() {
+        assertThatCode(() -> MatchRules.ensureCanCancel("OPEN", true, false)).doesNotThrowAnyException();
+        assertThatCode(() -> MatchRules.ensureCanCancel("FULL", false, true)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> MatchRules.ensureCanCancel("OPEN", false, false)).isInstanceOf(MatchRuleViolation.class);
+        assertThatThrownBy(() -> MatchRules.ensureCanCancel("CANCELLED", true, false)).hasMessageContaining("déjà annulé");
+    }
 }

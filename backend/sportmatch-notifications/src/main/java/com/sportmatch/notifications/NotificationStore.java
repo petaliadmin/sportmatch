@@ -32,7 +32,7 @@ public class NotificationStore {
         if (firstTime == 0) {
             return;
         }
-        NotificationFactory.from(event).ifPresent(n -> {
+        NotificationFactory.all(event).forEach(n -> {
             jdbc.sql("""
                         insert into notification (id, user_id, title, body, source_event_id)
                         values (:id, :userId, :title, :body, :eventId)

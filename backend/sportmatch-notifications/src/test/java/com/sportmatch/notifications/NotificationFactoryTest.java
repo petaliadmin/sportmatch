@@ -49,4 +49,14 @@ class NotificationFactoryTest {
         assertThat(notification.get().title()).isEqualTo("Réservation confirmée");
         assertThat(notification.get().body()).contains("Terrain A", "samedi 15 juin à 18h00", "aucun paiement");
     }
+
+    @Test
+    void unMatchAnnuleParLaModerationPrevientChaqueParticipantEtLOrganisateur() {
+        var all = NotificationFactory.all(event("match.cancelled", Map.of(
+                "organizerId", "awa", "cancelledBy", "admin", "byModeration", true,
+                "participantIds", java.util.List.of("awa", "moussa", "ibou"))));
+
+        assertThat(all).extracting(NewNotification::userId).containsExactly("awa", "moussa", "ibou");
+        assertThat(all).allSatisfy(n -> assertThat(n.body()).contains("modération"));
+    }
 }

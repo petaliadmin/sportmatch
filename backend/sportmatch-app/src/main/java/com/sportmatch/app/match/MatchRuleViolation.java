@@ -8,6 +8,15 @@ import org.springframework.web.ErrorResponseException;
 public class MatchRuleViolation extends ErrorResponseException {
 
     public MatchRuleViolation(String detail) {
-        super(HttpStatus.CONFLICT, ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, detail), null);
+        this(HttpStatus.CONFLICT, detail);
+    }
+
+    private MatchRuleViolation(HttpStatus status, String detail) {
+        super(status, ProblemDetail.forStatusAndDetail(status, detail), null);
+    }
+
+    /** Action réservée à un autre rôle (403). */
+    public static MatchRuleViolation forbidden(String detail) {
+        return new MatchRuleViolation(HttpStatus.FORBIDDEN, detail);
     }
 }

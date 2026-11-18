@@ -5,6 +5,11 @@ server:
 spring:
   application:
     name: sportmatch-gateway
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 500ms
   security:
     oauth2:
       resourceserver:
@@ -22,6 +27,11 @@ sportmatch:
     admin: ${ADMIN_URI:http://localhost:8084}
     notifications: ${NOTIFICATIONS_URI:http://localhost:8085}
     chat: ${CHAT_URI:http://localhost:8086}
+  # Limitation de débit par utilisateur connecté (ou par adresse IP), jetons rechargés chaque seconde.
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    replenish-per-second: ${RATE_LIMIT_PER_SECOND:50}
+    burst: ${RATE_LIMIT_BURST:100}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3080,http://localhost:3000}
 

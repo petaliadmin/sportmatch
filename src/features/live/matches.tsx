@@ -15,6 +15,11 @@ export function MatchesPanel({ onOpenChat }: { onOpenChat: (matchId: string) => 
   const [creating, setCreating] = useState(false);
   const matches = useResource(() => client.matches(status), [status, client]);
 
+  const cancel = async (id: string) => {
+    const r = await run(`cancel-${id}`, () => client.cancelMatch(id), "Match annulé, les participants sont prévenus");
+    if (r) matches.reload();
+  };
+
   const join = async (id: string) => {
     if (!user) return login();
     const r = await run(id, () => client.joinMatch(id), "Tu es dans l'équipe !");
@@ -51,6 +56,11 @@ export function MatchesPanel({ onOpenChat }: { onOpenChat: (matchId: string) => 
                   <div className="mt-3 flex gap-2">
                     {m.status === "OPEN" && !mine && <Button size="sm" loading={busy === m.id} onClick={() => join(m.id)}>Rejoindre</Button>}
                     {user && <Button size="sm" variant="outline" onClick={() => onOpenChat(m.id)}>Chat du match</Button>}
+                    {(mine || user?.roles.includes("admin")) && (
+                      <Button size="sm" variant="ghost" loading={busy === `cancel-${m.id}`} onClick={() => cancel(m.id)}>
+                        {mine ? "Annuler" : "Annuler (modération)"}
+                      </Button>
+                    )}
                   </div>
                 </Card>
               );

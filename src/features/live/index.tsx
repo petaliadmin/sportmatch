@@ -9,12 +9,14 @@ import { API_URL, apiEnabled } from "@/lib/api/config";
 import { useRouter } from "@/lib/router";
 import { BookingsPanel } from "./bookings";
 import { ChatPanel } from "./chat";
+import { AdminPanel } from "./admin";
 import { MatchesPanel } from "./matches";
+import { ProPanel } from "./pro";
 import { NotificationsPanel } from "./notifications";
 import { TournamentsPanel } from "./tournaments";
 import { VenuesPanel } from "./venues";
 
-type Tab = "venues" | "matches" | "bookings" | "tournaments" | "chat" | "notifications";
+type Tab = "venues" | "matches" | "bookings" | "tournaments" | "chat" | "notifications" | "pro" | "admin";
 const PRIVATE: Tab[] = ["bookings", "chat", "notifications"];
 
 /** Espace « Bêta live » : l'interface SportMatch branchée sur les microservices réels (via la gateway). */
@@ -55,6 +57,8 @@ function Live() {
             <Tabs<Tab> className="mb-5" value={tab} onChange={setTab} tabs={[
               { value: "venues", label: "Terrains" }, { value: "matches", label: "Matchs" }, { value: "bookings", label: "Réservations" },
               { value: "tournaments", label: "Tournois" }, { value: "chat", label: "Chat" }, { value: "notifications", label: "Notifications" },
+              ...(user?.roles.includes("provider") ? [{ value: "pro" as Tab, label: "Espace pro" }] : []),
+              ...(user?.roles.includes("admin") ? [{ value: "admin" as Tab, label: "Admin" }] : []),
             ]} />
             {PRIVATE.includes(tab) && !user ? (
               <Card className="flex flex-col items-center gap-3 p-8 text-center">
@@ -70,6 +74,8 @@ function Live() {
                 {tab === "tournaments" && <TournamentsPanel />}
                 {tab === "chat" && <ChatPanel focusMatchId={chatMatch} />}
                 {tab === "notifications" && <NotificationsPanel />}
+                {tab === "pro" && user?.roles.includes("provider") && <ProPanel />}
+                {tab === "admin" && user?.roles.includes("admin") && <AdminPanel />}
               </>
             )}
           </>

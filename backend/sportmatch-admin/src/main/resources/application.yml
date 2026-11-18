@@ -11,9 +11,17 @@ spring:
     password: ${DB_PASSWORD:sm_admin}
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9094}
+    consumer:
+      auto-offset-reset: earliest
   mvc:
     problemdetails:
       enabled: true
+
+sportmatch:
+  outbox:
+    enabled: false
 
 management:
   endpoints:

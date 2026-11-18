@@ -60,7 +60,7 @@ public class BookingService {
         Court court = court(courtId);
         OffsetDateTime from = day.atStartOfDay(BookingRules.DAKAR).toOffsetDateTime();
         List<Booking> confirmed = jdbc.sql(BOOKING_SELECT + """
-                         where b.court_id = :courtId and b.status = 'CONFIRMED'
+                         where b.court_id = :courtId and b.status in ('CONFIRMED', 'BLOCKED')
                            and b.starts_at < :to and b.ends_at > :from
                         """)
                 .param("courtId", courtId).param("from", from).param("to", from.plusDays(1))
@@ -80,7 +80,7 @@ public class BookingService {
         OffsetDateTime start = request.startsAt();
         OffsetDateTime end = start.plusHours(request.hours());
         boolean taken = jdbc.sql("""
-                        select exists(select 1 from booking where court_id = :courtId and status = 'CONFIRMED'
+                        select exists(select 1 from booking where court_id = :courtId and status in ('CONFIRMED', 'BLOCKED')
                                       and starts_at < :end and ends_at > :start)
                         """)
                 .param("courtId", court.id()).param("start", start).param("end", end)
@@ -138,7 +138,7 @@ public class BookingService {
     }
 
     public List<Booking> mine(String userId) {
-        return jdbc.sql(BOOKING_SELECT + " where b.user_id = :userId order by b.starts_at desc limit 50")
+        return jdbc.sql(BOOKING_SELECT + " where b.user_id = :userId and b.status <> 'BLOCKED' order by b.starts_at desc limit 50")
                 .param("userId", userId).query(Booking.class).list();
     }
 

@@ -8,7 +8,7 @@ export interface ApiVenue {
 }
 export interface ApiMatch {
   id: string; venueId: string; venueName: string; sport: string; startsAt: string; durationMinutes: number;
-  maxPlayers: number; level: string; organizerId: string; status: "OPEN" | "FULL"; participants: number;
+  maxPlayers: number; level: string; organizerId: string; status: "OPEN" | "FULL" | "CANCELLED"; participants: number;
 }
 export interface ApiCourt {
   id: string; venueId: string; venueName: string; name: string; sport: string;
@@ -33,6 +33,26 @@ export interface ApiBracketMatch {
   winnerTeamId: string | null; status: "PENDING" | "READY" | "PLAYED"; bye: boolean;
 }
 export interface ApiTournamentDetail { tournament: ApiTournamentSummary; teams: ApiTeam[]; bracket: ApiBracketMatch[] }
+
+export interface ProCourt {
+  id: string; venueId: string; venueName: string; name: string; sport: string;
+  pricePerHourFcfa: number; openHour: number; closeHour: number; upcomingBookings: number;
+}
+export interface ProBooking {
+  id: string; courtId: string; courtName: string; venueName: string; customerEmail: string | null;
+  startsAt: string; endsAt: string; priceFcfa: number; status: "CONFIRMED" | "CANCELLED" | "BLOCKED";
+}
+export interface ProDashboard {
+  courts: number; bookingsNext7Days: number; revenueNext7DaysFcfa: number; revenueLast30DaysFcfa: number;
+  occupancyTodayPercent: number; blockedSlotsNext7Days: number;
+}
+export interface AdminOverview {
+  totalEvents: number;
+  byType: { eventType: string; last24h: number; last7d: number }[];
+  last7Days: { day: string; count: number }[];
+  kpis: Record<string, number>;
+}
+export interface PlatformEvent { eventId: string; eventType: string; source: string; aggregateId: string; occurredAt: string; payload: string }
 
 /** Erreur RFC 9457 renvoyée par les services (message lisible dans `detail`). */
 export class ApiError extends Error {
@@ -76,6 +96,17 @@ export function api(token: TokenFn) {
     createMatch: (b: { venueId: string; sport: string; startsAt: string; durationMinutes: number; maxPlayers: number; level: string }) =>
       post<ApiMatch>("/api/v1/matches", b),
     joinMatch: (id: string) => post<ApiMatch>(`/api/v1/matches/${id}/join`),
+    cancelMatch: (id: string) => post<ApiMatch>(`/api/v1/matches/${id}/cancel`),
+    proCourts: () => get<ProCourt[]>("/api/v1/business/pro/courts"),
+    proUpdateCourt: (id: string, b: Partial<Pick<ProCourt, "pricePerHourFcfa" | "openHour" | "closeHour">>) =>
+      call<ProCourt>(token, "PATCH", `/api/v1/business/pro/courts/${id}`, b),
+    proBookings: (from: string, to: string) => get<ProBooking[]>(`/api/v1/business/pro/bookings?from=${from}&to=${to}`),
+    proBlock: (courtId: string, startsAt: string, hours: number) =>
+      post<ProBooking>(`/api/v1/business/pro/courts/${courtId}/blocks`, { startsAt, hours }),
+    proRelease: (id: string) => call<void>(token, "DELETE", `/api/v1/business/pro/blocks/${id}`),
+    proDashboard: () => get<ProDashboard>("/api/v1/business/pro/dashboard"),
+    adminOverview: () => get<AdminOverview>("/api/v1/admin/overview"),
+    adminEvents: (type?: string) => get<PlatformEvent[]>(`/api/v1/admin/events?limit=100${type ? `&type=${type}` : ""}`),
     courts: (venueId?: string) => get<ApiCourt[]>(`/api/v1/business/courts${venueId ? `?venueId=${venueId}` : ""}`),
     availability: (courtId: string, date: string) => get<ApiSlot[]>(`/api/v1/business/courts/${courtId}/availability?date=${date}`),
     book: (b: { courtId: string; startsAt: string; hours: number }) => post<ApiBooking>("/api/v1/business/bookings", b),

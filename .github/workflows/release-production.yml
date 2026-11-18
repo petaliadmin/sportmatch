@@ -127,6 +127,7 @@ jobs:
             --set-string commonEnv.DB_HOST=${{ vars.PRODUCTION_RDS_ENDPOINT }} \
             --set-string commonEnv.KAFKA_BOOTSTRAP=${{ vars.PRODUCTION_KAFKA_BOOTSTRAP }} \
             --set-string services.chat.env.REDIS_HOST=${{ vars.PRODUCTION_REDIS_ENDPOINT }} \
+            --set-string services.gateway.env.REDIS_HOST=${{ vars.PRODUCTION_REDIS_ENDPOINT }} \
             --atomic --wait --timeout 20m
       - name: Vérification de santé
         run: curl -fsS --retry 10 --retry-delay 10 "${{ vars.PRODUCTION_API_URL }}/actuator/health/readiness"

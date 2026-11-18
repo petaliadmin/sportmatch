@@ -158,6 +158,29 @@ public class MatchService {
         return match(matchId);
     }
 
+    @Transactional
+    public MatchView cancel(String userId, boolean admin, UUID matchId) {
+        MatchLock lock = jdbc.sql("select status, max_players, organizer_id from sport_match where id = :id for update")
+                .param("id", matchId)
+                .query(MatchLock.class)
+                .optional()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Match introuvable"));
+        boolean organizer = lock.organizerId().equals(userId);
+        MatchRules.ensureCanCancel(lock.status(), organizer, admin);
+        jdbc.sql("update sport_match set status = 'CANCELLED' where id = :id").param("id", matchId).update();
+
+        List<String> participants = jdbc.sql("select player_id from match_participant where match_id = :id order by joined_at")
+                .param("id", matchId).query(String.class).list();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("matchId", matchId.toString());
+        payload.put("organizerId", lock.organizerId());
+        payload.put("cancelledBy", userId);
+        payload.put("byModeration", !organizer);
+        payload.put("participantIds", participants);
+        outbox.append(Topics.MATCH_V1, "match", matchId.toString(), "match.cancelled", payload);
+        return match(matchId);
+    }
+
     private void addParticipant(UUID matchId, String playerId) {
         jdbc.sql("insert into match_participant (match_id, player_id) values (:matchId, :playerId)")
                 .param("matchId", matchId)

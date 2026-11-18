@@ -5,3 +5,5 @@ databaseChangeLog:
       file: db/changelog/changes/002-courts-bookings.sql
   - include:
       file: db/changelog/changes/003-seed-courts-demo.sql
+  - include:
+      file: db/changelog/changes/004-court-owner.sql

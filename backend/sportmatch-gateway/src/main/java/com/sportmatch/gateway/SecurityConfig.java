@@ -16,8 +16,8 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 /**
- * Lecture publique du catalogue (terrains, matchs) ; toute écriture et toute donnée personnelle
- * exigent un jeton JWT Keycloak valide.
+ * Lecture publique du catalogue (terrains, matchs, tournois) ; toute écriture et toute donnée personnelle
+ * exigent un jeton JWT Keycloak valide ; l'espace prestataire et le back-office exigent en plus le rôle adéquat.
  */
 @Configuration
 @EnableWebFluxSecurity
@@ -38,8 +38,12 @@ public class SecurityConfig {
                         .pathMatchers("/fallback/**").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/venues/**", "/api/v1/matches/**", "/api/v1/business/courts/**",
                                 "/api/v1/events/tournaments/**").permitAll()
+                        // Espaces réservés : contrôle par rôle Keycloak dès la gateway (les services revérifient).
+                        .pathMatchers("/api/v1/admin/**").hasRole(KeycloakRoles.ADMIN)
+                        .pathMatchers("/api/v1/business/pro/**").hasRole(KeycloakRoles.PROVIDER)
                         .anyExchange().authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2.bearerTokenConverter(bearer).jwt(Customizer.withDefaults()))
+                .oauth2ResourceServer(oauth2 -> oauth2.bearerTokenConverter(bearer)
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(KeycloakRoles::toAuthentication)))
                 .build();
     }
 

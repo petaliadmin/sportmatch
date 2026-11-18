@@ -132,10 +132,27 @@ retry 20 3 curl -fsS "$WEB/" -o /dev/null || fail "Front web injoignable"
 curl -fsS "$WEB/" | grep -q "SportMatch" || fail "Page d'accueil inattendue"
 echo "  ✓ $WEB (espace Bêta live : $WEB/#live)"
 
-step "14. Services amorcés joignables via la gateway"
-for svc in admin; do
-  curl -fsS "$GATEWAY/api/v1/$svc/status" -H "Authorization: Bearer $AWA" | grep -q "sportmatch-$svc" || fail "$svc injoignable"
-  echo "  ✓ sportmatch-$svc"
-done
+step "14. Rôles (RBAC) : espace pro réservé aux prestataires, back-office aux admins"
+IBOU_PRO=$(token_for ibou.business); ADMIN=$(token_for admin.sportmatch)
+[ -n "$IBOU_PRO" ] && [ -n "$ADMIN" ] || fail "Jetons prestataire/admin non obtenus"
+code() { curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $1" "$GATEWAY$2"; }
+[ "$(code "$AWA" /api/v1/business/pro/courts)" = "403" ] || fail "Une joueuse ne doit pas accéder à l'espace pro"
+[ "$(code "$AWA" /api/v1/admin/overview)" = "403" ] || fail "Une joueuse ne doit pas accéder au back-office"
+PRO_COURTS=$(curl -fsS "$GATEWAY/api/v1/business/pro/courts" -H "Authorization: Bearer $IBOU_PRO")
+echo "$PRO_COURTS" | grep -q '"id"' || fail "Aucun terrain rattaché au prestataire : $PRO_COURTS"
+curl -fsS "$GATEWAY/api/v1/business/pro/dashboard" -H "Authorization: Bearer $IBOU_PRO" | grep -q '"courts"' || fail "Tableau de bord pro indisponible"
+echo "  ✓ espace pro : $(echo "$PRO_COURTS" | grep -o '"venueId"' | wc -l | tr -d ' ') terrains, joueuse refusée (403)"
+admin_sees_matches() { curl -fsS "$GATEWAY/api/v1/admin/overview" -H "Authorization: Bearer $ADMIN" | grep -q '"eventType":"match.created"'; }
+retry 30 2 admin_sees_matches || fail "Le back-office ne voit pas les événements de la plateforme"
+curl -fsS "$GATEWAY/api/v1/admin/status" -H "Authorization: Bearer $ADMIN" | grep -q "sportmatch-admin" || fail "admin injoignable"
+echo "  ✓ back-office : journal des événements alimenté par Kafka, joueuse refusée (403)"
 
-printf '\n\033[1;32m✅ Phase 2B validée : matchs, proximité PostGIS, notifications, chat, réservations et tournois fonctionnent de bout en bout.\033[0m\n'
+step "15. Modération : l'organisatrice annule son match, les participants sont prévenus"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$GATEWAY/api/v1/matches/$MATCH_ID/cancel" -H "Authorization: Bearer $MOUSSA")" = "403" ] \
+  || fail "Un simple participant ne doit pas pouvoir annuler"
+curl -fsS -X POST "$GATEWAY/api/v1/matches/$MATCH_ID/cancel" -H "Authorization: Bearer $AWA" | grep -q '"status":"CANCELLED"' || fail "Annulation refusée"
+cancel_notified() { curl -fsS "$GATEWAY/api/v1/notifications" -H "Authorization: Bearer $MOUSSA" | grep -q "Match annulé"; }
+retry 30 2 cancel_notified || fail "Moussa n'a pas été prévenu de l'annulation"
+echo "  ✓ match annulé, Moussa notifié"
+
+printf '\n\033[1;32m✅ Phase 5 validée : matchs, PostGIS, notifications, chat, réservations, tournois, rôles, espace pro, back-office et modération fonctionnent de bout en bout.\033[0m\n'

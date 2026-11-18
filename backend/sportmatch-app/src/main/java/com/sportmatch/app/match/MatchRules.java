@@ -5,6 +5,7 @@ public final class MatchRules {
 
     public static final String OPEN = "OPEN";
     public static final String FULL = "FULL";
+    public static final String CANCELLED = "CANCELLED";
 
     private MatchRules() {
     }
@@ -15,6 +16,16 @@ public final class MatchRules {
         }
         if (!OPEN.equals(status) || participants >= maxPlayers) {
             throw new MatchRuleViolation("Ce match est complet ou n'est plus ouvert");
+        }
+    }
+
+    /** Annulation : par l'organisateur, ou par un administrateur (modération) ; jamais deux fois. */
+    public static void ensureCanCancel(String status, boolean organizer, boolean admin) {
+        if (!organizer && !admin) {
+            throw MatchRuleViolation.forbidden("Seul l'organisateur (ou la modération) peut annuler ce match");
+        }
+        if (CANCELLED.equals(status)) {
+            throw new MatchRuleViolation("Ce match est déjà annulé");
         }
     }
 

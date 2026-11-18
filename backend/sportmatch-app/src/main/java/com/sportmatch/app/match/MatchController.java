@@ -70,6 +70,14 @@ public class MatchController {
         return ResponseEntity.created(URI.create("/api/v1/matches/" + created.id())).body(created);
     }
 
+    @PostMapping("/matches/{id}/cancel")
+    public MatchView cancel(@RequestHeader(USER_HEADER) String userId,
+                            @RequestHeader(name = "X-User-Roles", required = false) String roles,
+                            @PathVariable("id") UUID id) {
+        boolean admin = roles != null && java.util.Arrays.asList(roles.split(",")).contains("admin");
+        return service.cancel(userId, admin, id);
+    }
+
     @PostMapping("/matches/{id}/join")
     public MatchView join(@RequestHeader(USER_HEADER) String userId, @PathVariable("id") UUID id) {
         return service.join(userId, id);

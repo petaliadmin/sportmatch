@@ -7,6 +7,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -43,6 +45,27 @@ public final class NotificationFactory {
                     p.path("championName").asText("") + " remporte « " + p.path("name").asText("") + " » !"));
             default -> Optional.empty();
         };
+    }
+
+    /** Toutes les notifications d'un événement (un match annulé prévient chaque participant). */
+    public static List<NewNotification> all(EventEnvelope event) {
+        if (!"match.cancelled".equals(event.eventType())) {
+            return from(event).stream().toList();
+        }
+        JsonNode p = event.payload();
+        boolean moderation = p.path("byModeration").asBoolean(false);
+        String body = moderation
+                ? "Le match a été annulé par la modération SportMatch."
+                : "L'organisateur a annulé le match. Trouve une autre partie dans l'onglet Matchs.";
+        List<NewNotification> out = new ArrayList<>();
+        p.path("participantIds").forEach(id -> out.add(new NewNotification(id.asText(), "Match annulé", body)));
+        if (moderation) {
+            String organizer = p.path("organizerId").asText(null);
+            if (organizer != null && out.stream().noneMatch(x -> x.userId().equals(organizer))) {
+                out.add(new NewNotification(organizer, "Match annulé", body));
+            }
+        }
+        return out;
     }
 
     private static Optional<String> recipient(JsonNode payload, String field) {
