@@ -36,8 +36,9 @@ step "Redirections de ports (mêmes adresses que l'environnement Docker Compose)
 pkill -f "kubectl -n $NS port-forward" 2>/dev/null || true
 for pf in "svc/sportmatch-gateway 8080:8080" "svc/keycloak 8180:8080" "svc/mailpit 8025:8025" "svc/sportmatch-web 3080:80"; do
   # shellcheck disable=SC2086
-  nohup kubectl -n "$NS" port-forward $pf > "/tmp/pf-${pf%% *}.log" 2>&1 &
+  log="/tmp/pf-$(echo "${pf%% *}" | tr '/' '-').log"
+  nohup kubectl -n "$NS" port-forward $pf > "$log" 2>&1 &
 done
-sleep 5
+for i in $(seq 1 20); do curl -fsS -o /dev/null http://localhost:8080/actuator/health/readiness && break; sleep 1; done
 echo "Gateway http://localhost:8080 · Keycloak http://localhost:8180 · Web http://localhost:3080/#live"
 echo "Test : bash infra/local/smoke-test.sh   ·   Nettoyage : kind delete cluster --name $CLUSTER"
