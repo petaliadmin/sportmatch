@@ -34,7 +34,8 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      # TCP explicite : pendant l'initialisation, le serveur temporaire n'écoute que sur le socket Unix.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -46,8 +47,14 @@ services:
     restart: "no"
     environment:
       PGPASSWORD: postgres
-    command: ["psql", "-h", "postgres", "-U", "postgres", "-d", "sportmatch_app", "-v", "ON_ERROR_STOP=1",
-              "-c", "CREATE EXTENSION IF NOT EXISTS postgis"]
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        for i in $$(seq 1 30); do
+          psql -h postgres -U postgres -d sportmatch_app -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS postgis' && exit 0
+          sleep 2
+        done
+        exit 1
     depends_on:
       postgres:
         condition: service_healthy
